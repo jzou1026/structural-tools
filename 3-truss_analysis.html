@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trusses v0.3.3 — Structural Analysis</title>
+  <title>Trusses v0.3.2 — Structural Analysis</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -202,8 +202,8 @@
 
     // ── DEFAULT DATA ───────────────────────────────────────────────────────────
     const DEFAULT_SUPPORTS = [
-      { id:1, joint:"A", x:0,  z:0,  type:"Pinned", kx:0, kz:0 },
-      { id:2, joint:"D", x:60, z:0,  type:"Pinned", kx:0, kz:0 },
+      { id:1, joint:"A", x:0,  z:0,  type:"Pinned" },
+      { id:2, joint:"D", x:60, z:0,  type:"Pinned" },
     ];
     const DEFAULT_JOINTS = [
       { id:1, joint:"B", x:20, z:0,  Px:0,   Pz:-25 },
@@ -236,8 +236,17 @@
           F: { Px:28, Pz:0 }
         }
       },
+      { id: 2, name: "LC2", type: "Live", jointLoads: {} },
+      { id: 3, name: "LC3", type: "Snow", jointLoads: {} },
+      { id: 4, name: "LC4", type: "Wind", jointLoads: {} },
+      { id: 5, name: "LC5", type: "Seismic", jointLoads: {} },
     ];
-    const DEFAULT_COMBOS = [];
+    const DEFAULT_COMBOS = [
+      { id:1, name:"ULS 1.25D + 1.5L", enabled:true, factors:{ D:1.25, L:1.50, S:0, W:0, E:0 } },
+      { id:2, name:"ULS D + S", enabled:true, factors:{ D:1.00, L:0, S:1.50, W:0, E:0 } },
+      { id:3, name:"ULS D + W", enabled:true, factors:{ D:1.00, L:0, S:0, W:1.40, E:0 } },
+      { id:4, name:"SLS D + L", enabled:true, factors:{ D:1.00, L:1.00, S:0, W:0, E:0 } },
+    ];
 
     // ── UNIT SETS ─────────────────────────────────────────────────────────────
     const UNIT_SETS = {
@@ -312,20 +321,6 @@
         F[2*i+1] += Pz;
       });
 
-      // Translational spring supports are added directly to the global stiffness matrix.
-      // kx and kz are entered as force per displacement unit (for example kips/in or kN/m).
-      // A support row can therefore be used as a conventional restraint, an elastic spring,
-      // or both. Set Type = Free with nonzero kx/kz for a pure elastic support.
-      supports.forEach(s => {
-        if (!s.joint.trim()) return;
-        const i = idx[s.joint.trim()];
-        if (i === undefined) return;
-        const kx = Math.max(0, +s.kx || 0);
-        const kz = Math.max(0, +s.kz || 0);
-        K[2*i][2*i] += kx;
-        K[2*i+1][2*i+1] += kz;
-      });
-
       // Determine constrained DOFs from supports
       const constrained = new Set();
       supports.forEach(s => {
@@ -384,23 +379,13 @@
       });
 
       // Reaction forces
-      // Conventional support reactions come from restrained DOFs. Spring reactions are k·δ,
-      // matching the sign convention used by Frames v0.6.6 for spring support recovery.
       const reactions = [];
       supports.forEach(s => {
         if (!s.joint.trim()) return;
         const i = idx[s.joint.trim()];
-        if (i === undefined) return;
-        const kx = Math.max(0, +s.kx || 0);
-        const kz = Math.max(0, +s.kz || 0);
-        const supportRx = constrained.has(2*i) ? (BIG * D[2*i]) : 0;
-        const supportRz = constrained.has(2*i+1) ? (BIG * D[2*i+1]) : 0;
-        const springRx = kx * (D[2*i] || 0);
-        const springRz = kz * (D[2*i+1] || 0);
-        const hasSpring = kx > 1e-12 || kz > 1e-12;
-        const supportLabel = s.type !== "Free" && hasSpring ? `${s.type} + Spring` : (hasSpring ? "Spring" : s.type);
-        reactions.push({ joint: s.joint.trim(), type:s.type, supportLabel, kx, kz, hasSpring,
-          Rx: supportRx + springRx, Rz: supportRz + springRz, springRx, springRz });
+        const Rx = constrained.has(2*i) ? (BIG * D[2*i]) : 0;
+        const Rz = constrained.has(2*i+1) ? (BIG * D[2*i+1]) : 0;
+        reactions.push({ joint: s.joint.trim(), Rx, Rz });
       });
 
       // Node displacements (only free)
@@ -520,35 +505,6 @@
       if (displacements) displacements.forEach(d => { dispMap[d.joint] = d; });
       const defScale = scale||200;
 
-      const SpringSupports = ({ s, x, y }) => {
-        if (!s) return null;
-        const kx = Math.max(0, +s.kx || 0);
-        const kz = Math.max(0, +s.kz || 0);
-        if (kx <= 1e-12 && kz <= 1e-12) return null;
-        const color = CLR.yellow;
-        const zig = pts => pts.map(p => `${p[0]},${p[1]}`).join(' ');
-        return <g>
-          {kx > 1e-12 && <g>
-            <title>{`Horizontal translational spring kx = ${fmt3(kx)}`}</title>
-            <line x1={x+7} y1={y} x2={x+12} y2={y} stroke={color} strokeWidth="1.5"/>
-            <polyline points={zig([[x+12,y],[x+16,y-4],[x+20,y+4],[x+24,y-4],[x+28,y+4],[x+32,y]])} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
-            <line x1={x+32} y1={y-8} x2={x+32} y2={y+8} stroke={color} strokeWidth="1.5"/>
-            <line x1={x+36} y1={y-8} x2={x+36} y2={y+8} stroke={color} strokeWidth="1.5"/>
-            <line x1={x+40} y1={y-8} x2={x+40} y2={y+8} stroke={color} strokeWidth="1.5"/>
-            <text x={x+26} y={y-10} textAnchor="middle" fill={color} fontSize="9" fontWeight="800">kx</text>
-          </g>}
-          {kz > 1e-12 && <g>
-            <title>{`Vertical translational spring kz = ${fmt3(kz)}`}</title>
-            <line x1={x} y1={y-7} x2={x} y2={y-12} stroke={color} strokeWidth="1.5"/>
-            <polyline points={zig([[x,y-12],[x-4,y-16],[x+4,y-20],[x-4,y-24],[x+4,y-28],[x,y-32]])} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
-            <line x1={x-8} y1={y-32} x2={x+8} y2={y-32} stroke={color} strokeWidth="1.5"/>
-            <line x1={x-8} y1={y-36} x2={x+8} y2={y-36} stroke={color} strokeWidth="1.5"/>
-            <line x1={x-8} y1={y-40} x2={x+8} y2={y-40} stroke={color} strokeWidth="1.5"/>
-            <text x={x+11} y={y-28} fill={color} fontSize="9" fontWeight="800">kz</text>
-          </g>}
-        </g>;
-      };
-
       return (
         <svg width={W} height={H} style={{ display:"block", margin:"0 auto", background:"transparent" }}>
           {/* Members */}
@@ -575,11 +531,9 @@
           {/* Nodes */}
           {Object.entries(allNodes).map(([nm, nd]) => {
             const {sx, sy} = toSvg(nd.x, nd.z);
-            const supportObj = supports.find(s => s.joint.trim() === nm);
-            const isSupport = !!supportObj;
+            const isSupport = supports.some(s => s.joint.trim() === nm);
             return (
               <g key={nm}>
-                <SpringSupports s={supportObj} x={sx} y={sy} />
                 <circle cx={sx} cy={sy} r={isSupport?5:4} fill={isSupport?CLR.green:CLR.accent} stroke={CLR.bg} strokeWidth={1.5} />
                 <text x={sx} y={sy-8} textAnchor="middle" fontSize={10} fill={CLR.text} fontFamily="monospace">{nm}</text>
               </g>
@@ -639,7 +593,7 @@
 
       // Support helpers
       const updateSup = (id, field, val) => setSupports(prev => prev.map(s => s.id===id ? {...s,[field]:val} : s));
-      const addSup = () => { nextSupId.current++; setSupports(prev => [...prev, {id:nextSupId.current, joint:"", x:"", z:"", type:"Pinned", kx:0, kz:0}]); };
+      const addSup = () => { nextSupId.current++; setSupports(prev => [...prev, {id:nextSupId.current, joint:"", x:"", z:"", type:"Pinned"}]); };
       const delSup = id => setSupports(prev => prev.filter(s => s.id!==id));
 
       // Joint helpers
@@ -750,9 +704,58 @@
             </div>
           </div>
 
-          {/* Load combination manager removed: v0.3.3 default uses LC1 only. */}
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}`, gap:12 }}>
+              <div>
+                <div style={S.h2}>Load Combination Manager</div>
+                <div style={{ color:CLR.muted, fontSize:11 }}>Factors are applied by load type: D = Dead, L = Live, S = Snow, W = Wind, E = Seismic.</div>
+              </div>
+              <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addCombo}>+ Add Combo</button>
+            </div>
+            <div style={{ overflowX:"auto" }}>
+              <table style={S.table}>
+                <thead><tr>
+                  <th style={S.th}>Use</th>
+                  <th style={S.th}>Combination</th>
+                  <th style={S.th}>D</th>
+                  <th style={S.th}>L</th>
+                  <th style={S.th}>S</th>
+                  <th style={S.th}>W</th>
+                  <th style={S.th}>E</th>
+                  <th style={S.th}>—</th>
+                </tr></thead>
+                <tbody>
+                  {combos.map((c,i)=>(
+                    <tr key={c.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}>
+                      <td style={S.td}><input type="checkbox" checked={!!c.enabled} onChange={e=>updateCombo(c.id,"enabled",e.target.checked)} /></td>
+                      <td style={S.td}><input style={S.input} value={c.name} onChange={e=>updateCombo(c.id,"name",e.target.value)} /></td>
+                      {["D","L","S","W","E"].map(k=><td style={S.td} key={k}><input style={S.input} type="number" step="0.05" value={(c.factors||{})[k] ?? 0} onChange={e=>updateComboFactor(c.id,k,e.target.value)} /></td>)}
+                      <td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delCombo(c.id)}>✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-          {/* Model preview removed from Inputs page. */}
+          <div style={{ ...S.card, marginBottom:"1.5rem" }}>
+            <div style={{ display:"flex", alignItems:"center", marginBottom:"1rem", gap:16 }}>
+              <div>
+                <div style={S.h2}>Figure 1: Truss Preview</div>
+                <div style={{ color:CLR.muted, fontSize:11 }}>
+                  Live geometry preview from the current supports, joints, members, and applied joint loads.
+                </div>
+              </div>
+            </div>
+            <TrussDiagram
+              supports={supports}
+              joints={applyJointLoads(joints, activeLoadCase?.jointLoads || {})}
+              members={members}
+              results={null}
+              displacements={null}
+              scale={200}
+            />
+          </div>
 
           <div className="report-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.5rem" }}>
             {/* Table 1: Supports */}
@@ -768,8 +771,6 @@
                     <th style={S.th}>x [{u.dist}]</th>
                     <th style={S.th}>z [{u.dist}]</th>
                     <th style={S.th}>Type</th>
-                    <th style={S.th}>kx [{u.load}/{u.dist}]</th>
-                    <th style={S.th}>kz [{u.load}/{u.dist}]</th>
                     <th style={S.th}>—</th>
                   </tr></thead>
                   <tbody>
@@ -784,11 +785,8 @@
                             <option>Roller-X</option>
                             <option>Roller-Z</option>
                             <option>Fixed</option>
-                            <option>Free</option>
                           </select>
                         </td>
-                        <td style={S.td}><input style={S.input} type="number" min="0" step="any" value={s.kx || 0} onChange={e=>updateSup(s.id,"kx",e.target.value)} title="Horizontal translational spring stiffness" /></td>
-                        <td style={S.td}><input style={S.input} type="number" min="0" step="any" value={s.kz || 0} onChange={e=>updateSup(s.id,"kz",e.target.value)} title="Vertical translational spring stiffness" /></td>
                         <td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delSup(s.id)}>✕</button></td>
                       </tr>
                     ))}
@@ -807,8 +805,7 @@
                   <tr style={{ background:"#ffffff05" }}><td style={S.td}>Distance (x, z, L)</td><td style={{ ...S.td, color:CLR.teal }}>{u.dist}</td></tr>
                   <tr><td style={S.td}>Modulus (E)</td><td style={{ ...S.td, color:CLR.teal }}>{u.load}/{u.dist}²</td></tr>
                   <tr style={{ background:"#ffffff05" }}><td style={S.td}>Area (A)</td><td style={{ ...S.td, color:CLR.teal }}>{u.dist}²</td></tr>
-                  <tr><td style={S.td}>Spring stiffness (kx, kz)</td><td style={{ ...S.td, color:CLR.teal }}>{u.load}/{u.dist}</td></tr>
-                  <tr style={{ background:"#ffffff05" }}><td style={S.td}>Axial Force</td><td style={{ ...S.td, color:CLR.teal }}>{u.load}</td></tr>
+                  <tr><td style={S.td}>Axial Force</td><td style={{ ...S.td, color:CLR.teal }}>{u.load}</td></tr>
                   <tr style={{ background:"#ffffff05" }}><td style={S.td}>Sign convention</td><td style={{ ...S.td, color:CLR.yellow, fontSize:10 }}>+x right · +z up</td></tr>
                 </tbody>
               </table>
@@ -883,8 +880,7 @@
           {/* Warning */}
           <div style={{ ...S.card, background:"#161b22", fontSize:11, color:CLR.muted }}>
             <strong style={{ color:CLR.yellow }}>⚠ Notes:</strong>&nbsp;
-            Supports define pinned/roller boundary conditions and optional translational spring stiffnesses kx/kz.
-            Use Type = Free with nonzero kx/kz for a pure spring support. Free joints can carry loads.
+            Supports define pinned/roller boundary conditions. Free joints can carry loads.
             Nodes referenced in Members that don't appear in Supports or Joints will be treated as free with zero load.
             Positive forces = Tension; Negative = Compression.
           </div>
@@ -923,7 +919,7 @@
           <div className="print-report-header">
             <h1>Truss Analysis Report</h1>
             <div className="meta">
-              Generated by Trusses v0.3.3 · Units: {u.load}/{u.dist}<br />
+              Generated by Trusses v0.3.2 · Units: {u.load}/{u.dist}<br />
               Status: {stability} · Members b = {b} · Reactions r = {r} · Joints j = {j} · b + r = {b+r} · 2j = {2*j}
             </div>
           </div>
@@ -962,7 +958,37 @@
             </div>
           </div>
 
-          {/* Load combination summary removed: no default load combinations. */}
+          {comboResults && comboResults.length > 0 && (
+            <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+              <div style={{ padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}>
+                <div style={S.h2}>Load Combination Results Summary</div>
+              </div>
+              <table style={S.table}>
+                <thead><tr>
+                  <th style={S.th}>Combination</th>
+                  <th style={S.th}>Status</th>
+                  <th style={S.th}>Max |Member Force| [{u.load}]</th>
+                  <th style={S.th}>Controlling Member</th>
+                </tr></thead>
+                <tbody>
+                  {comboResults.map((cr,i)=>{
+                    const hasErr = cr.result && cr.result.error;
+                    const max = !hasErr && cr.result.results && cr.result.results.length
+                      ? cr.result.results.reduce((a,r)=>Math.abs(r.force)>Math.abs(a.force)?r:a,cr.result.results[0])
+                      : null;
+                    return (
+                      <tr key={cr.id || i} style={{ background:i%2===0?"transparent":"#ffffff05" }}>
+                        <td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{cr.name}</td>
+                        <td style={S.td}>{hasErr ? <span style={S.badge(CLR.red)}>Error</span> : <span style={S.badge(CLR.green)}>Solved</span>}</td>
+                        <td style={S.td}>{max ? fmt3(Math.abs(max.force)) : "—"}</td>
+                        <td style={S.td}>{max ? max.name : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Warnings */}
           {(hasDuplicate || hasDupNode) && (
@@ -973,7 +999,17 @@
             </div>
           )}
 
-          {/* Model preview removed from Results page; print report still includes result tables. */}
+          {/* Diagram */}
+          <div className="print-avoid print-diagram-section" style={{ ...S.card, marginBottom:"2rem" }}>
+            <div style={{ display:"flex", alignItems:"center", marginBottom:"1rem", gap:16 }}>
+              <div style={S.h2}>Figure 1: Free Body Diagram &amp; Deformed Shape</div>
+              <div className="screen-only" style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                <span style={{ fontSize:11, color:CLR.muted }}>Deform scale:</span>
+                <input type="number" step="10" value={defScale} onChange={e=>setDefScale(+e.target.value)} style={{ ...S.input, width:70, textAlign:"center" }} />
+              </div>
+            </div>
+            <TrussDiagram supports={supports} joints={joints} members={members} results={results} displacements={displacements} scale={defScale} />
+          </div>
 
           <div className="report-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.5rem" }}>
             {/* Table 1: Axial Forces */}
@@ -1014,21 +1050,15 @@
               <table style={S.table}>
                 <thead><tr>
                   <th style={S.th}>Joint</th>
-                  <th style={S.th}>Type</th>
                   <th style={S.th}>Rx [{u.load}]</th>
                   <th style={S.th}>Rz [{u.load}]</th>
-                  <th style={S.th}>Spring Rx [{u.load}]</th>
-                  <th style={S.th}>Spring Rz [{u.load}]</th>
                 </tr></thead>
                 <tbody>
                   {reactions.map((r,i) => (
                     <tr key={i} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
                       <td style={{ ...S.td, fontWeight:700, color:CLR.green }}>{r.joint}</td>
-                      <td style={S.td}>{r.supportLabel || r.type || "—"}</td>
                       <td style={{ ...S.td, color: Math.abs(r.Rx)>1e-6?CLR.text:CLR.muted }}>{fmt3(r.Rx)}</td>
                       <td style={{ ...S.td, color: Math.abs(r.Rz)>1e-6?CLR.text:CLR.muted }}>{fmt3(r.Rz)}</td>
-                      <td style={{ ...S.td, color: Math.abs(r.springRx)>1e-6?CLR.yellow:CLR.muted }}>{fmt3(r.springRx || 0)}</td>
-                      <td style={{ ...S.td, color: Math.abs(r.springRz)>1e-6?CLR.yellow:CLR.muted }}>{fmt3(r.springRz || 0)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1073,19 +1103,16 @@
           <div style={{ ...S.card }}>
             <div style={S.h2}>Method: Direct Stiffness (Finite Element)</div>
             <p style={{ fontSize:13, color:CLR.muted, lineHeight:1.7, marginBottom:"1rem" }}>
-              Trusses v0.3.3 solves 2D pin-jointed trusses using the <strong style={{ color:CLR.text }}>Direct Stiffness Method</strong>.
+              Trusses v0.3.2 solves 2D pin-jointed trusses using the <strong style={{ color:CLR.text }}>Direct Stiffness Method</strong>.
               Each member is a two-force bar element. The global stiffness equation K·D = Q is assembled from
-              per-member local stiffness matrices. Optional translational spring supports are added directly to the
-              corresponding global diagonal stiffness terms before boundary conditions are applied and the system is solved via Gaussian elimination.
+              per-member local stiffness matrices, boundary conditions applied, and solved via Gaussian elimination.
             </p>
             <div style={{ ...S.card, background:"#0d1117", fontSize:12, lineHeight:2, color:CLR.teal }}>
               <div><span style={{ color:CLR.muted }}>Member stiffness (local): </span>  k = EA/L</div>
               <div><span style={{ color:CLR.muted }}>Direction cosines:         </span>  cₓ = Δx/L,  c_z = Δz/L</div>
               <div><span style={{ color:CLR.muted }}>Axial force:               </span>  N = (EA/L)·[cₓ c_z -cₓ -c_z]·{"{d}"}</div>
               <div><span style={{ color:CLR.muted }}>Global system:             </span>  [K]·{"{D}"} = {"{Q}"}</div>
-              <div><span style={{ color:CLR.muted }}>Spring support:            </span>  Kii = Kii + kspring</div>
-              <div><span style={{ color:CLR.muted }}>Spring reaction:           </span>  Rspring = kspring·δ</div>
-              <div><span style={{ color:CLR.muted }}>Stability check:           </span>  b + r vs 2j, with springs adding elastic restraint</div>
+              <div><span style={{ color:CLR.muted }}>Stability check:           </span>  b + r vs 2j</div>
             </div>
           </div>
           <div className="report-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.5rem" }}>
@@ -1094,7 +1121,7 @@
               <table style={S.table}>
                 <thead><tr><th style={S.th}>Type</th><th style={S.th}>DOFs Fixed</th><th style={S.th}>Reactions</th></tr></thead>
                 <tbody>
-                  {[["Pinned","x, z","Rx, Rz"],["Roller-X","z only","Rz"],["Roller-Z","x only","Rx"],["Fixed","x, z","Rx, Rz"],["Free + kx/kz","none; elastic only","Spring Rx/Rz"]].map(([t,d,r],i)=>(
+                  {[["Pinned","x, z","Rx, Rz"],["Roller-X","z only","Rz"],["Roller-Z","x only","Rx"],["Fixed","x, z","Rx, Rz"]].map(([t,d,r],i)=>(
                     <tr key={i} style={{ background:i%2===0?"transparent":"#ffffff05" }}>
                       <td style={{ ...S.td, color:CLR.green, fontWeight:700 }}>{t}</td>
                       <td style={S.td}>{d}</td>
@@ -1117,7 +1144,7 @@
                   ))}
                 </tbody>
               </table>
-              <div style={{ marginTop:12, fontSize:11, color:CLR.muted }}>b = members · r = conventional restrained reactions · j = joints. Springs add elastic stiffness but are not counted as classical restraints in b+r.</div>
+              <div style={{ marginTop:12, fontSize:11, color:CLR.muted }}>b = members · r = reactions · j = joints</div>
             </div>
           </div>
         </div>
@@ -1160,7 +1187,7 @@
         <div style={S.app}>
           <header style={S.header}>
             <div>
-              <div style={{ fontSize:16, fontWeight:800, color:CLR.accent, letterSpacing:"0.05em" }}>Trusses v0.3.3</div>
+              <div style={{ fontSize:16, fontWeight:800, color:CLR.accent, letterSpacing:"0.05em" }}>Trusses v0.3.2</div>
               <div style={{ fontSize:10, color:CLR.muted, letterSpacing:"0.1em" }}>STRUCTURAL ANALYSIS · DIRECT STIFFNESS</div>
             </div>
             <nav style={S.nav}>
