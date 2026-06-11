@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Beams v0.3.5 — Continuous Beam Analysis</title>
+  <title>Beams v0.3.6 — Continuous Beam Analysis</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -211,10 +211,48 @@
     ];
     // E=200×10⁶ kN/m², I_base=5×10⁻⁴ m⁴ (I), 2I=10⁻³ m⁴
     const DEFAULT_MEMBERS = [
-      { id:1, near:"A", far:"C", name:"AC", E:200e6, I:5e-4, wa:0, wb:0, P:120, a:6, b:4 },
-      { id:2, near:"C", far:"E", name:"CE", E:200e6, I:1e-3, wa:0, wb:0, P:120, a:6, b:4 },
-      { id:3, near:"E", far:"G", name:"EG", E:200e6, I:5e-4, wa:0, wb:0, P:150, a:4, b:4 },
+      { id:1, near:"A", far:"C", name:"AC", E:200e6, I:5e-4, wa:0, wb:0, P:0, a:6, b:4 },
+      { id:2, near:"C", far:"E", name:"CE", E:200e6, I:1e-3, wa:0, wb:0, P:0, a:6, b:4 },
+      { id:3, near:"E", far:"G", name:"EG", E:200e6, I:5e-4, wa:0, wb:0, P:0, a:4, b:4 },
     ];
+
+    // ── LOAD CASE MANAGER DATA — COPIED FROM FRAMES v0.6.6 PATTERN ─────────
+    // Geometry, stiffness, supports, settlements, and springs are model data.
+    // Nodal/member loads are stored per load case and copied onto the analysis
+    // model only when that case or combination is solved.
+    const LOAD_TYPES = ["Dead", "Live", "Snow", "Wind", "Seismic", "Other"];
+    const COMBO_TYPES = ["Strength", "Service", "Envelope", "Other"];
+    const EMPTY_NODE_LOAD = { Pz:0 };
+    const EMPTY_MEMBER_LOAD = { wa:0, wb:0, P:0, a:0 };
+    const DEFAULT_LOAD_CASES = [
+      {
+        id:1, name:"LC1", type:"Dead", factor:1.0,
+        nodalLoads:{},
+        memberLoads:{
+          "1":{ wa:0, wb:0, P:120, a:6 },
+          "2":{ wa:0, wb:0, P:120, a:6 },
+          "3":{ wa:0, wb:0, P:150, a:4 },
+        }
+      }
+    ];
+    const DEFAULT_LOAD_COMBINATIONS = [];
+    const cloneDeep = obj => JSON.parse(JSON.stringify(obj));
+    function nodeLoadFor(loadCase, nodeId) { return { ...EMPTY_NODE_LOAD, ...(((loadCase || {}).nodalLoads || {})[String(nodeId)] || {}) }; }
+    function memberLoadFor(loadCase, memberId) { return { ...EMPTY_MEMBER_LOAD, ...(((loadCase || {}).memberLoads || {})[String(memberId)] || {}) }; }
+    function mergeBeamLoadCaseLoads(nodes, members, loadCase) {
+      const f = +((loadCase || {}).factor ?? 1) || 0;
+      return {
+        nodes: nodes.map(n => {
+          const L = nodeLoadFor(loadCase, n.id);
+          return { ...n, Pz:(+L.Pz || 0) * f };
+        }),
+        members: members.map(m => {
+          const L = memberLoadFor(loadCase, m.id);
+          const a = (L.a === undefined || L.a === null || L.a === "") ? (+m.a || 0) : (+L.a || 0);
+          return { ...m, wa:(+L.wa || 0)*f, wb:(+L.wb || 0)*f, P:(+L.P || 0)*f, a, b:Math.max(0, (+m.b || 0)) };
+        })
+      };
+    }
 
     // ── SOLVER ────────────────────────────────────────────────────────────────
     // Continuous beam by Direct Stiffness Method (rotational DOFs only).
@@ -467,6 +505,74 @@
       return { rotations, displacements: rotations, memberResults, reactions, allSFD, allBMD, nodes: validNodes, members: validMembers, D, K, F, freeDofs: free };
     }
 
+    function combineSeries(terms, getter, key) {
+      const ref = terms.find(t => getter(t.result) && getter(t.result).length);
+      const base = ref ? getter(ref.result) : [];
+      return base.map((pt, idx) => ({
+        ...pt,
+        [key]: terms.reduce((sum, t) => sum + (+t.factor || 0) * ((((getter(t.result) || [])[idx] || {})[key]) || 0), 0)
+      }));
+    }
+
+    function combineBeamResults(combo, solvedCases) {
+      const caseMap = {};
+      (solvedCases || []).forEach(c => { caseMap[String(c.loadCase.id)] = c; });
+      const terms = (combo.terms || [])
+        .map(t => ({ factor:+t.factor || 0, case:caseMap[String(t.loadCaseId)] }))
+        .filter(t => t.case && t.case.result && !t.case.result.error);
+      if (!terms.length) return { error:"Load combination could not be solved: no valid load cases were selected." };
+
+      const base = terms[0].case.result;
+      const combineAt = (arrName, fields) => (base[arrName] || []).map((row, i) => {
+        const out = { ...row };
+        fields.forEach(f => {
+          out[f] = terms.reduce((sum,t)=>sum+(+t.factor||0)*(((((t.case.result || {})[arrName] || [])[i] || {})[f])||0),0);
+        });
+        return out;
+      });
+
+      const memberResults = (base.memberResults || []).map((mr, mi) => {
+        const out = { ...mr };
+        ["V_near","M_near","V_far","M_far"].forEach(f => {
+          out[f] = terms.reduce((sum,t)=>sum + (+t.factor || 0) * (((t.case.result.memberResults || [])[mi] || {})[f] || 0), 0);
+        });
+        out.sfd = combineSeries(terms.map(t=>({factor:t.factor,result:((t.case.result.memberResults || [])[mi] || {})})), r=>r.sfd, "V");
+        out.bmd = combineSeries(terms.map(t=>({factor:t.factor,result:((t.case.result.memberResults || [])[mi] || {})})), r=>r.bmd, "M");
+        out.defl = combineSeries(terms.map(t=>({factor:t.factor,result:((t.case.result.memberResults || [])[mi] || {})})), r=>r.defl, "vLocal").map((p,idx)=>({
+          ...p,
+          thetaLocal: terms.reduce((sum,t)=>sum+(+t.factor||0)*(((((t.case.result.memberResults || [])[mi] || {}).defl || [])[idx] || {}).thetaLocal || 0),0)
+        }));
+        return out;
+      });
+
+      return {
+        ...base,
+        isLoadCombination:true,
+        loadCombination:{ ...combo, terms:terms.map(t=>({ factor:t.factor, loadCase:t.case.loadCase })) },
+        rotations:combineAt("rotations", ["dz","theta"]),
+        displacements:combineAt("displacements", ["dz","theta"]),
+        reactions:combineAt("reactions", ["Rz","Rm"]),
+        memberResults,
+        allSFD:memberResults.flatMap(m=>m.sfd || []),
+        allBMD:memberResults.flatMap(m=>m.bmd || [])
+      };
+    }
+
+    function solveLoadCases(nodes, members, loadCases, loadCombinations, units) {
+      const conv = SETTLE_CONV[units];
+      const activeCases = (loadCases || []).filter(lc => String(lc.name || '').trim());
+      const cases = activeCases.map(lc => {
+        const model = mergeBeamLoadCaseLoads(nodes, members, lc);
+        const solved = solveBeam(model.nodes, model.members, conv);
+        return { loadCase:{ id:lc.id, name:lc.name, type:lc.type, factor:+lc.factor || 0 }, result:{ ...solved, modelNodes:model.nodes, modelMembers:model.members } };
+      });
+      const combos = (loadCombinations || []).filter(c => c.enabled !== false && String(c.name || '').trim()).map(combo => ({
+        loadCase:{ id:2000000 + (+combo.id || 0), comboId:combo.id, name:combo.name, type:`Combination · ${combo.type || "Service"}`, factor:1 },
+        result:combineBeamResults(combo, cases)
+      }));
+      return [...cases, ...combos];
+    }
+
     function gaussElim(A, b) {
       const n = b.length;
       const M = A.map((r, i) => [...r, b[i]]);
@@ -685,22 +791,66 @@
     }
 
     // ── INPUTS VIEW ───────────────────────────────────────────────────────────
-    function InputsView({ nodes, setNodes, members, setMembers, units, setUnits, onCalculate }) {
+    function InputsView({ nodes, setNodes, members, setMembers, units, setUnits, loadCases, setLoadCases, loadCombinations, setLoadCombinations, activeLoadCaseId, setActiveLoadCaseId, onCalculate }) {
       const nextNodeId = useRef(nodes.length + 1);
       const nextMemId  = useRef(members.length + 1);
       const u = UNIT_SETS[units];
+      const activeLC = loadCases.find(lc => String(lc.id) === String(activeLoadCaseId)) || loadCases[0] || DEFAULT_LOAD_CASES[0];
 
       const updateNode = (id, field, val) => setNodes(prev => prev.map(n => n.id===id ? {...n,[field]:val} : n));
       const addNode    = () => { nextNodeId.current++; setNodes(prev => [...prev, { id:nextNodeId.current, label:"", x:"", type:"Pin", settle:0, Pz:0, kZ:0, kTheta:0 }]); };
-      const delNode    = id  => setNodes(prev => prev.filter(n => n.id !== id));
+      const delNode    = id  => { setNodes(prev => prev.filter(n => n.id !== id)); setLoadCases(prev => prev.map(lc => { const nl={...(lc.nodalLoads||{})}; delete nl[String(id)]; return {...lc,nodalLoads:nl}; })); };
 
       const updateMem  = (id, field, val) => setMembers(prev => prev.map(m => m.id===id ? {...m,[field]:val} : m));
       const addMem     = () => { nextMemId.current++; setMembers(prev => [...prev, { id:nextMemId.current, near:"", far:"", name:"", E:1, I:1, wa:0, wb:0, P:0, a:0, b:0 }]); };
-      const delMem     = id  => setMembers(prev => prev.filter(m => m.id !== id));
+      const delMem     = id  => { setMembers(prev => prev.filter(m => m.id !== id)); setLoadCases(prev => prev.map(lc => { const ml={...(lc.memberLoads||{})}; delete ml[String(id)]; return {...lc,memberLoads:ml}; })); };
+
+      const updateActiveNodeLoad = (nodeId, field, val) => setLoadCases(prev => prev.map(lc => {
+        if (String(lc.id) !== String(activeLC.id)) return lc;
+        const current = nodeLoadFor(lc, nodeId);
+        return { ...lc, nodalLoads:{ ...(lc.nodalLoads || {}), [String(nodeId)]:{ ...current, [field]:val } } };
+      }));
+      const updateActiveMemberLoad = (memId, field, val) => setLoadCases(prev => prev.map(lc => {
+        if (String(lc.id) !== String(activeLC.id)) return lc;
+        const current = memberLoadFor(lc, memId);
+        return { ...lc, memberLoads:{ ...(lc.memberLoads || {}), [String(memId)]:{ ...current, [field]:val } } };
+      }));
+      const updateLoadCase = (id, field, val) => setLoadCases(prev => prev.map(lc => lc.id===id ? { ...lc, [field]:val } : lc));
+      const addLoadCase = () => {
+        const id = Math.max(0, ...loadCases.map(lc => +lc.id || 0)) + 1;
+        const newCase = { id, name:`LC${id}`, type:"Live", factor:1.0, nodalLoads:{}, memberLoads:{} };
+        setLoadCases(prev => [...prev, newCase]);
+        setActiveLoadCaseId(id);
+      };
+      const duplicateLoadCase = () => {
+        const id = Math.max(0, ...loadCases.map(lc => +lc.id || 0)) + 1;
+        const copy = cloneDeep(activeLC);
+        copy.id = id; copy.name = `${activeLC.name || "LC"} Copy`;
+        setLoadCases(prev => [...prev, copy]);
+        setActiveLoadCaseId(id);
+      };
+      const deleteLoadCase = (id) => {
+        if (loadCases.length <= 1) return;
+        setLoadCases(prev => prev.filter(lc => lc.id !== id));
+        if (String(activeLoadCaseId) === String(id)) setActiveLoadCaseId((loadCases.find(lc => lc.id !== id) || loadCases[0]).id);
+      };
+      const addCombo = () => {
+        const id = Math.max(0, ...loadCombinations.map(c => +c.id || 0)) + 1;
+        const firstId = loadCases[0]?.id || 1;
+        setLoadCombinations(prev => [...prev, { id, name:`COMBO${id}`, type:"Service", enabled:true, terms:[{ id:1, loadCaseId:firstId, factor:1.0 }] }]);
+      };
+      const updateCombo = (id, updater) => setLoadCombinations(prev => prev.map(c => c.id===id ? (typeof updater === "function" ? updater(c) : { ...c, ...updater }) : c));
+      const delCombo = id => setLoadCombinations(prev => prev.filter(c => c.id !== id));
+      const addComboTerm = comboId => updateCombo(comboId, c => ({ ...c, terms:[...(c.terms || []), { id:Math.max(0, ...((c.terms || []).map(t=>+t.id||0)))+1, loadCaseId:loadCases[0]?.id || 1, factor:1.0 }] }));
+      const updateComboTerm = (comboId, termId, field, val) => updateCombo(comboId, c => ({ ...c, terms:(c.terms || []).map(t => t.id===termId ? { ...t, [field]:val } : t) }));
+      const delComboTerm = (comboId, termId) => updateCombo(comboId, c => ({ ...c, terms:(c.terms || []).filter(t => t.id !== termId) }));
 
       const resetDefault = () => {
         setNodes(DEFAULT_NODES.map(n => ({...n})));
         setMembers(DEFAULT_MEMBERS.map(m => ({...m})));
+        setLoadCases(DEFAULT_LOAD_CASES.map(lc => cloneDeep(lc)));
+        setLoadCombinations(DEFAULT_LOAD_COMBINATIONS.map(c => cloneDeep(c)));
+        setActiveLoadCaseId(DEFAULT_LOAD_CASES[0].id);
         nextNodeId.current = DEFAULT_NODES.length + 1;
         nextMemId.current  = DEFAULT_MEMBERS.length + 1;
       };
@@ -720,6 +870,70 @@
               <button style={S.btn("ghost")} onClick={resetDefault}>↺ Reset Example</button>
               <button style={{ ...S.btn("primary"), padding:"8px 24px", fontSize:13 }} onClick={onCalculate}>▶ Analyze</button>
             </div>
+          </div>
+
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}>
+              <div>
+                <div style={S.h2}>Load Case Manager</div>
+                <div style={{ fontSize:11, color:CLR.muted }}>Select the active load case, then enter nodal and span loads in the tables below. The analysis runs every load case separately.</div>
+              </div>
+              <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addLoadCase}>+ Add Case</button>
+              <button style={{ ...S.btn("ghost"), padding:"4px 12px", fontSize:11 }} onClick={duplicateLoadCase}>⧉ Duplicate Active</button>
+            </div>
+            <div style={{ overflowX:"auto" }}>
+              <table style={S.table}>
+                <thead><tr>
+                  <th style={S.th}>Active</th><th style={S.th}>Case</th><th style={S.th}>Type</th><th style={S.th}>Analysis Factor</th><th style={S.th}>—</th>
+                </tr></thead>
+                <tbody>
+                  {loadCases.map((lc, i) => (
+                    <tr key={lc.id} style={{ background:String(activeLC.id)===String(lc.id)?CLR.accent+"12":(i%2===0?"transparent":"#ffffff05") }}>
+                      <td style={S.td}><input type="radio" checked={String(activeLC.id)===String(lc.id)} onChange={()=>setActiveLoadCaseId(lc.id)}/></td>
+                      <td style={S.td}><input style={{ ...S.input, fontWeight:700, color:String(activeLC.id)===String(lc.id)?CLR.accent:CLR.text }} value={lc.name} onChange={e=>updateLoadCase(lc.id,"name",e.target.value)}/></td>
+                      <td style={S.td}><select style={S.select} value={lc.type || "Dead"} onChange={e=>updateLoadCase(lc.id,"type",e.target.value)}>{LOAD_TYPES.map(t=><option key={t}>{t}</option>)}</select></td>
+                      <td style={S.td}><input style={S.input} type="number" step="any" value={lc.factor} onChange={e=>updateLoadCase(lc.id,"factor",e.target.value)}/></td>
+                      <td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10, opacity:loadCases.length<=1?0.4:1 }} disabled={loadCases.length<=1} onClick={()=>deleteLoadCase(lc.id)}>✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}>
+              <div>
+                <div style={S.h2}>Load Combinations</div>
+                <div style={{ fontSize:11, color:CLR.muted }}>Optional linear combinations copied from the Frames manager workflow. Leave empty to solve only individual load cases.</div>
+              </div>
+              <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addCombo}>+ Add Combo</button>
+            </div>
+            {loadCombinations.length === 0 ? (
+              <div style={{ padding:"0.85rem 1.25rem", fontSize:11, color:CLR.muted }}>No load combinations defined.</div>
+            ) : loadCombinations.map((combo, ci) => (
+              <div key={combo.id} style={{ padding:"0.85rem 1.25rem", borderTop:ci?`1px solid ${CLR.border}`:"none" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"90px 1fr 150px 90px", gap:8, alignItems:"center", marginBottom:8 }}>
+                  <label style={{ fontSize:11, color:CLR.muted }}><input type="checkbox" checked={combo.enabled !== false} onChange={e=>updateCombo(combo.id,{enabled:e.target.checked})}/> Enabled</label>
+                  <input style={S.input} value={combo.name} onChange={e=>updateCombo(combo.id,{name:e.target.value})}/>
+                  <select style={S.select} value={combo.type || "Service"} onChange={e=>updateCombo(combo.id,{type:e.target.value})}>{COMBO_TYPES.map(t=><option key={t}>{t}</option>)}</select>
+                  <button style={{ ...S.btn("danger"), padding:"4px 10px", fontSize:10 }} onClick={()=>delCombo(combo.id)}>Delete</button>
+                </div>
+                <table style={S.table}>
+                  <thead><tr><th style={S.th}>Factor</th><th style={S.th}>Load Case</th><th style={S.th}>—</th></tr></thead>
+                  <tbody>
+                    {(combo.terms || []).map(term => (
+                      <tr key={term.id}>
+                        <td style={S.td}><input style={S.input} type="number" step="any" value={term.factor} onChange={e=>updateComboTerm(combo.id,term.id,"factor",e.target.value)}/></td>
+                        <td style={S.td}><select style={S.select} value={term.loadCaseId} onChange={e=>updateComboTerm(combo.id,term.id,"loadCaseId",e.target.value)}>{loadCases.map(lc=><option key={lc.id} value={lc.id}>{lc.name}</option>)}</select></td>
+                        <td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delComboTerm(combo.id,term.id)}>✕</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button style={{ ...S.btn("ghost"), padding:"4px 12px", fontSize:11, marginTop:8 }} onClick={()=>addComboTerm(combo.id)}>+ Add Term</button>
+              </div>
+            ))}
           </div>
 
           <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:"1.5rem" }}>
@@ -756,7 +970,7 @@
                           </select>
                         </td>
                         <td style={S.td}><input style={{ ...S.input, borderColor: Math.abs(+n.settle||0)>1e-9 ? CLR.orange+"88" : CLR.border }} type="number" step="any" value={n.settle} onChange={e=>updateNode(n.id,"settle",e.target.value)}/></td>
-                        <td style={S.td}><input style={{ ...S.input, borderColor: Math.abs(+n.Pz||0)>1e-9 ? CLR.red+"88" : CLR.border }} type="number" step="any" value={n.Pz} onChange={e=>updateNode(n.id,"Pz",e.target.value)}/></td>
+                        {(() => { const L = nodeLoadFor(activeLC, n.id); return <td style={S.td}><input style={{ ...S.input, borderColor: Math.abs(+L.Pz||0)>1e-9 ? CLR.red+"88" : CLR.border }} type="number" step="any" value={L.Pz} onChange={e=>updateActiveNodeLoad(n.id,"Pz",e.target.value)}/></td>; })()}
                         <td style={S.td}><input style={{ ...S.input, borderColor: Math.abs(+n.kZ||0)>1e-9 ? CLR.violet+"88" : CLR.border }} type="number" step="any" value={n.kZ ?? 0} onChange={e=>updateNode(n.id,"kZ",e.target.value)}/></td>
                         <td style={S.td}><input style={{ ...S.input, borderColor: Math.abs(+n.kTheta||0)>1e-9 ? CLR.violet+"88" : CLR.border }} type="number" step="any" value={n.kTheta ?? 0} onChange={e=>updateNode(n.id,"kTheta",e.target.value)}/></td>
                         <td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delNode(n.id)}>✕</button></td>
@@ -807,7 +1021,7 @@
             <div style={{ display:"flex", alignItems:"center", padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}`, gap:12 }}>
               <div style={S.h2}>Table 3: Spans (Members)</div>
               <div style={{ color:CLR.muted, fontSize:11, marginLeft:8 }}>
-                wa = UDL at near end &nbsp;·&nbsp; wb = UDL at far end &nbsp;·&nbsp; P = point load within span &nbsp;·&nbsp; a = dist from near to P &nbsp;·&nbsp; b = dist from P to far
+                Loads shown are for active load case: <span style={{ color:CLR.accent, fontWeight:700 }}>{activeLC.name}</span> &nbsp;·&nbsp; wa/wb = UDL &nbsp;·&nbsp; P = point load &nbsp;·&nbsp; a = dist from near to P
               </div>
               <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addMem}>+ Add</button>
             </div>
@@ -834,10 +1048,10 @@
                       <td style={S.td}><input style={S.input} value={m.name} onChange={e=>updateMem(m.id,"name",e.target.value)}/></td>
                       <td style={S.td}><input style={S.input} type="number" step="any" value={m.E}  onChange={e=>updateMem(m.id,"E",e.target.value)}/></td>
                       <td style={S.td}><input style={S.input} type="number" step="any" value={m.I}  onChange={e=>updateMem(m.id,"I",e.target.value)}/></td>
-                      <td style={S.td}><input style={S.input} type="number" step="any" value={m.wa} onChange={e=>updateMem(m.id,"wa",e.target.value)}/></td>
-                      <td style={S.td}><input style={S.input} type="number" step="any" value={m.wb} onChange={e=>updateMem(m.id,"wb",e.target.value)}/></td>
-                      <td style={S.td}><input style={S.input} type="number" step="any" value={m.P}  onChange={e=>updateMem(m.id,"P",e.target.value)}/></td>
-                      <td style={S.td}><input style={S.input} type="number" step="any" value={m.a}  onChange={e=>updateMem(m.id,"a",e.target.value)}/></td>
+                      <td style={S.td}><input style={S.input} type="number" step="any" value={memberLoadFor(activeLC,m.id).wa} onChange={e=>updateActiveMemberLoad(m.id,"wa",e.target.value)}/></td>
+                      <td style={S.td}><input style={S.input} type="number" step="any" value={memberLoadFor(activeLC,m.id).wb} onChange={e=>updateActiveMemberLoad(m.id,"wb",e.target.value)}/></td>
+                      <td style={S.td}><input style={S.input} type="number" step="any" value={memberLoadFor(activeLC,m.id).P}  onChange={e=>updateActiveMemberLoad(m.id,"P",e.target.value)}/></td>
+                      <td style={S.td}><input style={S.input} type="number" step="any" value={memberLoadFor(activeLC,m.id).a}  onChange={e=>updateActiveMemberLoad(m.id,"a",e.target.value)}/></td>
                       <td style={S.td}><input style={S.input} type="number" step="any" value={m.b}  onChange={e=>updateMem(m.id,"b",e.target.value)}/></td>
                       <td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delMem(m.id)}>✕</button></td>
                     </tr>
@@ -850,7 +1064,7 @@
           {/* Beam Preview */}
           <div style={{ ...S.card }}>
             <div style={S.h2}>Figure 1: Beam Preview</div>
-            <BeamDiagram nodes={nodes} members={members}/>
+            <BeamDiagram nodes={mergeBeamLoadCaseLoads(nodes, members, activeLC).nodes} members={mergeBeamLoadCaseLoads(nodes, members, activeLC).members}/>
           </div>
 
           <div style={{ ...S.card, background:"#161b22", fontSize:11, color:CLR.muted }}>
@@ -891,14 +1105,19 @@
     }
 
     // ── RESULTS VIEW ──────────────────────────────────────────────────────────
-    function ResultsView({ result, nodes, members, units }) {
+    function ResultsView({ result, nodes, members, units, selectedResultId, setSelectedResultId }) {
       const u = UNIT_SETS[units];
       const [activeSpan, setActiveSpan] = useState(0);
       const [memberDiagramType, setMemberDiagramType] = useState("V");
       const [overlayMode, setOverlayMode] = useState("none");
       const [overlayScale, setOverlayScale] = useState(5);
+      const caseList = result && Array.isArray(result.cases) ? result.cases : [];
+      const activeOutput = caseList.find(c => String(c.loadCase.id) === String(selectedResultId)) || caseList[0];
+      const activeResult = activeOutput ? activeOutput.result : null;
+      const displayNodes = (activeResult && activeResult.modelNodes) || nodes;
+      const displayMembers = (activeResult && activeResult.modelMembers) || members;
 
-      if (!result) return (
+      if (!result || !activeResult) return (
         <div style={{ textAlign:"center", padding:"4rem", color:CLR.muted }}>
           <div style={{ fontSize:48, marginBottom:16 }}>🏗️</div>
           <div style={{ fontSize:16, fontWeight:700, color:CLR.text }}>No results yet</div>
@@ -906,14 +1125,14 @@
         </div>
       );
 
-      if (result.error) return (
+      if (activeResult.error) return (
         <div style={{ ...S.card, border:`1px solid ${CLR.red}44` }}>
           <div style={{ fontSize:14, fontWeight:700, color:CLR.red, marginBottom:8 }}>✗ Solver Error</div>
-          <div style={{ color:CLR.muted, fontSize:13 }}>{result.error}</div>
+          <div style={{ color:CLR.muted, fontSize:13 }}>{activeResult.error}</div>
         </div>
       );
 
-      const { rotations, memberResults, reactions } = result;
+      const { rotations, memberResults, reactions } = activeResult;
       const activeMem = memberResults[activeSpan];
       const reportDate = new Date().toLocaleDateString();
       const printReport = () => {
@@ -924,18 +1143,25 @@
 
       return (
         <div className="report-results-block">
-          <div className="screen-only" style={{ ...S.card, display:"flex", alignItems:"center", gap:"1rem", marginBottom:"1.5rem", background:"#161b22" }}>
+          <div className="screen-only" style={{ ...S.card, display:"flex", alignItems:"center", gap:"1rem", marginBottom:"1.5rem", background:"#161b22", flexWrap:"wrap" }}>
             <div>
               <div style={{ ...S.h2, marginBottom:4 }}>Analysis Report</div>
-              <div style={{ fontSize:11, color:CLR.muted }}>Print or save the complete beam analysis results package as a PDF.</div>
+              <div style={{ fontSize:11, color:CLR.muted }}>Review individual load cases or load combinations, then print/save the selected results package as a PDF.</div>
             </div>
-            <button style={{ ...S.btn("primary"), marginLeft:"auto", padding:"8px 20px", fontSize:13 }} onClick={printReport}>🖨 Print / Save PDF Report</button>
+            <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:11, color:CLR.muted }}>Results:</span>
+              <select style={{ ...S.select, width:240 }} value={activeOutput?.loadCase?.id || ""} onChange={e=>setSelectedResultId(e.target.value)}>
+                {caseList.map(c => <option key={c.loadCase.id} value={c.loadCase.id}>{c.loadCase.name} — {c.loadCase.type}</option>)}
+              </select>
+              <button style={{ ...S.btn("primary"), padding:"8px 20px", fontSize:13 }} onClick={printReport}>🖨 Print / Save PDF Report</button>
+            </div>
           </div>
 
           <div className="print-report-header">
-            <h1>Beams v0.3.4 — Continuous Beam / Cantilever Analysis Report</h1>
+            <h1>Beams v0.3.6 — Continuous Beam / Cantilever Analysis Report</h1>
             <div className="meta">
               Generated: {reportDate}<br/>
+              Result Set: {activeOutput?.loadCase?.name || "—"} ({activeOutput?.loadCase?.type || "—"})<br/>
               Units: force = {u.force}, distance = {u.dist}, moment = {u.moment}, settlement = {u.settle}<br/>
               Method: Direct stiffness analysis with beam displacement + rotation DOFs, consistent member load vectors, support settlements, and nodal spring supports.
             </div>
@@ -954,7 +1180,7 @@
                 <input style={{ ...S.input, width:80 }} type="number" step="0.5" value={overlayScale} onChange={e=>setOverlayScale(+e.target.value || 1)}/>
               </div>
             </div>
-            <BeamDiagram nodes={nodes} members={members} result={result} overlayMode={overlayMode} overlayScale={overlayScale}/>
+            <BeamDiagram nodes={displayNodes} members={displayMembers} result={activeResult} overlayMode={overlayMode} overlayScale={overlayScale}/>
           </div>
 
           <div className="report-results-block" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.5rem" }}>
@@ -1173,12 +1399,17 @@
       const [nodes, setNodes]     = useState(DEFAULT_NODES.map(n => ({...n})));
       const [members, setMembers] = useState(DEFAULT_MEMBERS.map(m => ({...m})));
       const [units, setUnits]     = useState("kN/m");
+      const [loadCases, setLoadCases] = useState(DEFAULT_LOAD_CASES.map(lc => cloneDeep(lc)));
+      const [loadCombinations, setLoadCombinations] = useState(DEFAULT_LOAD_COMBINATIONS.map(c => cloneDeep(c)));
+      const [activeLoadCaseId, setActiveLoadCaseId] = useState(DEFAULT_LOAD_CASES[0].id);
+      const [selectedResultId, setSelectedResultId] = useState(DEFAULT_LOAD_CASES[0].id);
       const [result, setResult]   = useState(null);
 
       const handleCalculate = () => {
-        const conv = SETTLE_CONV[units];
-        const res  = solveBeam(nodes, members, conv);
-        setResult(res);
+        const cases = solveLoadCases(nodes, members, loadCases, loadCombinations, units);
+        const preferred = cases.find(c => String(c.loadCase.id) === String(activeLoadCaseId)) || cases[0];
+        setResult({ cases });
+        setSelectedResultId(preferred ? preferred.loadCase.id : "");
         setTab("results");
       };
 
@@ -1192,22 +1423,22 @@
         <div style={S.app}>
           <header style={S.header}>
             <div>
-              <div style={{ fontSize:16, fontWeight:800, color:CLR.accent, letterSpacing:"0.05em" }}>Beams v0.3.3</div>
+              <div style={{ fontSize:16, fontWeight:800, color:CLR.accent, letterSpacing:"0.05em" }}>Beams v0.3.6</div>
               <div style={{ fontSize:10, color:CLR.muted, letterSpacing:"0.1em" }}>CONTINUOUS BEAM ANALYSIS · DIRECT STIFFNESS METHOD</div>
             </div>
             <nav style={S.nav}>
               {tabs.map(t => (
                 <button key={t.id} style={S.navBtn(tab===t.id)} onClick={() => setTab(t.id)}>
                   {t.label}
-                  {t.id==="results" && result && !result.error && <span style={{ marginLeft:6, ...S.badge(CLR.green), fontSize:9, padding:"1px 5px" }}>✓</span>}
-                  {t.id==="results" && result &&  result.error && <span style={{ marginLeft:6, ...S.badge(CLR.red),   fontSize:9, padding:"1px 5px" }}>✗</span>}
+                  {t.id==="results" && result && Array.isArray(result.cases) && result.cases.some(c=>c.result && !c.result.error) && <span style={{ marginLeft:6, ...S.badge(CLR.green), fontSize:9, padding:"1px 5px" }}>✓</span>}
+                  {t.id==="results" && result && Array.isArray(result.cases) && result.cases.every(c=>c.result && c.result.error) && <span style={{ marginLeft:6, ...S.badge(CLR.red),   fontSize:9, padding:"1px 5px" }}>✗</span>}
                 </button>
               ))}
             </nav>
           </header>
           <main style={S.main}>
-            {tab==="inputs"  && <InputsView nodes={nodes} setNodes={setNodes} members={members} setMembers={setMembers} units={units} setUnits={setUnits} onCalculate={handleCalculate}/>}
-            {tab==="results" && <ResultsView result={result} nodes={nodes} members={members} units={units}/>}
+            {tab==="inputs"  && <InputsView nodes={nodes} setNodes={setNodes} members={members} setMembers={setMembers} units={units} setUnits={setUnits} loadCases={loadCases} setLoadCases={setLoadCases} loadCombinations={loadCombinations} setLoadCombinations={setLoadCombinations} activeLoadCaseId={activeLoadCaseId} setActiveLoadCaseId={setActiveLoadCaseId} onCalculate={handleCalculate}/>}
+            {tab==="results" && <ResultsView result={result} nodes={nodes} members={members} units={units} selectedResultId={selectedResultId} setSelectedResultId={setSelectedResultId}/>}
             {tab==="theory"  && <TheoryView/>}
           </main>
         </div>
