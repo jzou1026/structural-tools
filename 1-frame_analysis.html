@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Frames v0.6.6 — Plane Frame Analysis</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d1117; color: #e6edf3; font-family: 'JetBrains Mono','Fira Code','Cascadia Code',monospace; }
+    input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+    select { -webkit-appearance: none; appearance: none; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+    .print-report { display: none; }
+    @page { size: letter portrait; margin: 0.50in; }
+    @media print {
+      html, body {
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-family: Arial, Helvetica, sans-serif !important;
+        font-size: 10pt !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body * { visibility: hidden !important; }
+      .print-report, .print-report * { visibility: visible !important; }
+      .print-report {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+      }
+      .report-page {
+        width: 7.5in;
+        min-height: 10.0in;
+        margin: 0 auto;
+        padding: 0;
+        page-break-after: always;
+        break-after: page;
+        background: #ffffff !important;
+        color: #111827 !important;
+      }
+      .report-page:last-child { page-break-after: auto; break-after: auto; }
+      .report-cover {
+        border-bottom: 2px solid #111827;
+        padding-bottom: 0.14in;
+        margin-bottom: 0.16in;
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+      .report-title {
+        font-size: 18pt;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: 0.02em;
+        margin: 0 0 0.05in;
+        color: #111827 !important;
+      }
+      .report-subtitle {
+        font-size: 8.5pt;
+        color: #374151 !important;
+        line-height: 1.45;
+        margin-bottom: 0.05in;
+      }
+      .report-h2 {
+        font-size: 9.5pt;
+        font-weight: 800;
+        color: #111827 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin: 0.13in 0 0.06in;
+        border-bottom: 1px solid #cbd5e1;
+        padding-bottom: 0.035in;
+      }
+      .report-h3 {
+        font-size: 8.5pt;
+        font-weight: 800;
+        color: #111827 !important;
+        margin: 0.09in 0 0.04in;
+      }
+      .report-block, .report-diagram-block, .report-table-wrap, .report-member {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .report-table-wrap { overflow: visible !important; margin-bottom: 0.08in; }
+      .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7.6pt;
+        margin-bottom: 0.08in;
+        page-break-inside: auto;
+      }
+      .report-table thead { display: table-header-group; }
+      .report-table tr { break-inside: avoid; page-break-inside: avoid; }
+      .report-table th {
+        background: #e8edf5 !important;
+        color: #111827 !important;
+        border: 1px solid #9ca3af;
+        padding: 3.5pt 4pt;
+        text-align: center;
+        font-weight: 800;
+      }
+      .report-table td {
+        color: #111827 !important;
+        border: 1px solid #d1d5db;
+        padding: 3pt 4pt;
+        text-align: center;
+        vertical-align: middle;
+      }
+      .report-note {
+        font-size: 7.5pt;
+        color: #4b5563 !important;
+        line-height: 1.35;
+        margin-top: 0.04in;
+      }
+      .report-svg {
+        width: 100%;
+        max-height: 1.62in;
+        height: auto;
+        display: block;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .report-frame-page {
+        page-break-after: always !important;
+        break-after: page !important;
+        overflow: hidden !important;
+      }
+      .report-frame-page .report-cover { margin-bottom: 0.10in; }
+      .report-frame-block {
+        display: block !important;
+        clear: both !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        overflow: hidden !important;
+        margin-top: 0.04in !important;
+      }
+      .report-frame-svg {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 7.40in !important;
+        max-height: 7.40in !important;
+        overflow: hidden !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .report-frame-svg svg {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 7.10in !important;
+        max-height: 7.10in !important;
+        display: block !important;
+        margin: 0 auto !important;
+        overflow: visible !important;
+        transform: scale(0.75) !important;
+        transform-origin: center center !important;
+      }
+      .report-summary-page {
+        page-break-before: always !important;
+        break-before: page !important;
+      }
+      .report-member-page { page-break-before: always; break-before: page; }
+      .report-member { margin-bottom: 0.12in; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const CLR = {
+      bg: "#0d1117", surface: "#161b22", card: "#1c2333", border: "#30363d",
+      accent: "#58a6ff", green: "#3fb950", red: "#f85149", yellow: "#d29922",
+      text: "#e6edf3", muted: "#8b949e", teal: "#39d353", orange: "#f0883e", violet: "#bc8cff"
+    };
+    const S = {
+      app: { minHeight:"100vh", background:CLR.bg, color:CLR.text, display:"flex", flexDirection:"column" },
+      header: { background:CLR.surface, borderBottom:`1px solid ${CLR.border}`, padding:"0 2rem", display:"flex", alignItems:"center", gap:"2rem", minHeight:60 },
+      nav: { display:"flex", gap:0, marginLeft:"auto" },
+      navBtn: active => ({ background:"none", border:"none", borderBottom: active ? `2px solid ${CLR.accent}` : "2px solid transparent", color: active ? CLR.accent : CLR.muted, padding:"18px 20px", cursor:"pointer", fontSize:13, fontFamily:"inherit", fontWeight: active ? 700 : 400 }),
+      main: { flex:1, padding:"2rem", maxWidth:1450, margin:"0 auto", width:"100%" },
+      card: { background:CLR.card, border:`1px solid ${CLR.border}`, borderRadius:8, padding:"1.25rem", marginBottom:"1.5rem" },
+      h2: { fontSize:14, fontWeight:700, color:CLR.accent, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"1rem" },
+      table: { width:"100%", borderCollapse:"collapse", fontSize:12 },
+      th: { background:"#21262d", color:CLR.muted, padding:"7px 9px", textAlign:"center", fontWeight:600, fontSize:11, textTransform:"uppercase", borderBottom:`1px solid ${CLR.border}` },
+      td: { padding:"6px 9px", textAlign:"center", borderBottom:"1px solid #21262d", color:CLR.text },
+      input: { background:"#0d1117", border:`1px solid ${CLR.border}`, borderRadius:4, color:CLR.text, fontFamily:"inherit", fontSize:12, padding:"4px 7px", width:"100%", textAlign:"center", outline:"none" },
+      select: { background:"#0d1117", border:`1px solid ${CLR.border}`, borderRadius:4, color:CLR.text, fontFamily:"inherit", fontSize:12, padding:"4px 7px", width:"100%", textAlign:"center", outline:"none" },
+      btn: (v="primary") => ({ background: v==="primary"?CLR.accent : v==="danger"?"#3d1f1f":"#21262d", color: v==="danger"?CLR.red : v==="primary"?"#000":CLR.text, border:`1px solid ${v==="danger"?CLR.red : v==="primary"?CLR.accent:CLR.border}`, borderRadius:6, padding:"8px 18px", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:700 }),
+      badge: color => ({ display:"inline-block", background:color+"22", color, border:`1px solid ${color}55`, borderRadius:4, padding:"2px 8px", fontSize:11, fontWeight:700 })
+    };
+
+    const SUPPORTS = ["Fixed", "Pinned", "Horizontal Roller", "Vertical Roller", "Free"];
+    const MEMBER_RELEASES = ["Fix-Fix", "Pin-Fix", "Fix-Pin", "Pin-Pin"];
+    const UNIT_SETS = {
+      "kip/ft": { force:"kip", dist:"ft", moment:"kip·ft", load:"kip/ft", E:"ksi", area:"in²", inertia:"in⁴", disp:"in", coordToLen:12, loadToFperLen:1/12, momentToSolver:12, momentFromSolver:1/12, EFactor:1 },
+      "kip/in": { force:"kip", dist:"in", moment:"kip·in", load:"kip/in", E:"ksi", area:"in²", inertia:"in⁴", disp:"in", coordToLen:1, loadToFperLen:1, momentToSolver:1, momentFromSolver:1, EFactor:1 },
+      "kN/m": { force:"kN", dist:"m", moment:"kN·m", load:"kN/m", E:"MPa", area:"mm²", inertia:"mm⁴", disp:"mm", coordToLen:1000, loadToFperLen:1/1000, momentToSolver:1000, momentFromSolver:1/1000, EFactor:0.001 },
+      "kN/mm": { force:"kN", dist:"mm", moment:"kN·mm", load:"kN/mm", E:"MPa", area:"mm²", inertia:"mm⁴", disp:"mm", coordToLen:1, loadToFperLen:1, momentToSolver:1, momentFromSolver:1, EFactor:0.001 },
+      "N/m": { force:"N", dist:"m", moment:"N·m", load:"N/m", E:"MPa", area:"mm²", inertia:"mm⁴", disp:"mm", coordToLen:1000, loadToFperLen:1/1000, momentToSolver:1000, momentFromSolver:1/1000, EFactor:1 }
+    };
+    const DEFAULT_NODES = [
+      { id:1, label:"1", x:0,  y:0,  support:"Fixed", kx:0, ky:0, kTheta:0, fx:0,  fy:0, mz:0 },
+      { id:2, label:"2", x:0,  y:30, support:"Free",  kx:0, ky:0, kTheta:0, fx:20, fy:0, mz:0 },
+      { id:3, label:"3", x:40, y:30, support:"Free",  kx:0, ky:0, kTheta:0, fx:0,  fy:0, mz:0 },
+      { id:4, label:"4", x:40, y:0,  support:"Fixed", kx:0, ky:0, kTheta:0, fx:0,  fy:0, mz:0 }
+    ];
+    const DEFAULT_MEMBERS = [
+      { id:1, name:"1", near:"1", far:"2", E:29000, A:15, I:900, qxA:0, qxB:0, qyA:0, qyB:0, pointPx:0, pointPy:0, pointA:0, release:"Fix-Fix" },
+      { id:2, name:"2", near:"2", far:"3", E:29000, A:30, I:1800, qxA:0, qxB:0, qyA:-1.5, qyB:-1.5, pointPx:0, pointPy:0, pointA:0, release:"Fix-Fix" },
+      { id:3, name:"3", near:"4", far:"3", E:29000, A:15, I:900, qxA:0, qxB:0, qyA:0, qyB:0, pointPx:0, pointPy:0, pointA:0, release:"Fix-Fix" }
+    ];
+    const EMPTY_NODE_LOAD = { fx:0, fy:0, mz:0 };
+    const EMPTY_MEMBER_LOAD = { qxA:0, qxB:0, qyA:0, qyB:0, pointPx:0, pointPy:0, pointA:0 };
+    const DEFAULT_LOAD_CASES = [
+      { id:1, name:"LC1", type:"Dead", factor:1.0, nodalLoads:{ "2":{ fx:20, fy:0, mz:0 } }, memberLoads:{ "2":{ qxA:0, qxB:0, qyA:-1.5, qyB:-1.5, pointPx:0, pointPy:0, pointA:0 } } }
+    ];
+    const DEFAULT_RESPONSE_SPECTRUM = [
+      { id:1, T:0.2, Sa:1.05 },
+      { id:2, T:0.5, Sa:0.838 },
+      { id:3, T:1.0, Sa:0.487 },
+      { id:4, T:2.0, Sa:0.295 },
+      { id:5, T:4.0, Sa:0.1142 },
+      { id:6, T:5.0, Sa:0.0841 },
+      { id:7, T:10.0, Sa:0.0348 }
+    ];
+    const DEFAULT_RS_SETTINGS = { enabled:false, direction:"X", damping:5, modesToUse:50, scaleFactor:1.0, spectrum:DEFAULT_RESPONSE_SPECTRUM.map(p=>({...p})) };
+    const DEFAULT_MASS_SOURCE = { enabled:false, items:[
+      { id:1, loadCaseId:1, factor:1.0, includeNodal:true, includeMember:true },
+      { id:2, loadCaseId:2, factor:0.25, includeNodal:true, includeMember:true }
+    ] };
+    const DEFAULT_LOAD_COMBINATIONS = [];
+    function nodeLoadFor(loadCase, nodeId) { return { ...EMPTY_NODE_LOAD, ...(((loadCase || {}).nodalLoads || {})[String(nodeId)] || {}) }; }
+    function memberLoadFor(loadCase, memberId) { return { ...EMPTY_MEMBER_LOAD, ...(((loadCase || {}).memberLoads || {})[String(memberId)] || {}) }; }
+    function mergeLoadCaseLoads(nodes, members, loadCase) {
+      const f = +((loadCase || {}).factor ?? 1) || 0;
+      return {
+        nodes: nodes.map(n => { const L = nodeLoadFor(loadCase, n.id); return { ...n, fx:(+L.fx||0)*f, fy:(+L.fy||0)*f, mz:(+L.mz||0)*f }; }),
+        members: members.map(m => { const L = memberLoadFor(loadCase, m.id); return { ...m, qxA:(+L.qxA||0)*f, qxB:(+L.qxB||0)*f, qyA:(+L.qyA||0)*f, qyB:(+L.qyB||0)*f, pointPx:(+L.pointPx||0)*f, pointPy:(+L.pointPy||0)*f, pointA:(+L.pointA||0) }; })
+      };
+    }
+    function solverGravity(units) {
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+      if (units === "kip/ft" || units === "kip/in") return 386.4;
+      if (units === "kN/m" || units === "kN/mm") return 9810;
+      if (units === "N/m") return 9810;
+      return 9810;
+    }
+    function zeroLoadModel(nodes, members) {
+      return {
+        nodes:nodes.map(n=>({...n, fx:0, fy:0, mz:0})),
+        members:members.map(m=>({...m, qxA:0, qxB:0, qyA:0, qyB:0, pointPx:0, pointPy:0, pointA:+m.pointA||0}))
+      };
+    }
+    function findLoadCase(loadCases, id) { return (loadCases || []).find(lc => String(lc.id) === String(id)); }
+    function buildMassWeights(nodes, members, loadCases, massSource, units) {
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+      const weights = {}; nodes.forEach(n => weights[String(n.id)] = 0);
+      const nodeById = {}; nodes.forEach(n => nodeById[String(n.id)] = n);
+      (massSource.items || []).forEach(item => {
+        const lc = findLoadCase(loadCases, item.loadCaseId); if (!lc) return;
+        const f = (+item.factor || 0) * (+lc.factor || 1);
+        if (item.includeNodal !== false) {
+          nodes.forEach(n => { const L = nodeLoadFor(lc, n.id); weights[String(n.id)] += f * Math.abs(+L.fy || 0); });
+        }
+        if (item.includeMember !== false) {
+          members.forEach(m => {
+            const a = nodeById[String(m.near)], b = nodeById[String(m.far)]; if (!a || !b) return;
+            const Lm = memberLoadFor(lc, m.id);
+            const len = Math.hypot((+b.x||0)-(+a.x||0), (+b.y||0)-(+a.y||0));
+            const wLine = 0.5*(Math.abs(+Lm.qyA||0)+Math.abs(+Lm.qyB||0))*len;
+            const pLoad = Math.abs(+Lm.pointPy||0);
+            const aa = Math.max(0, Math.min(len, +Lm.pointA||0));
+            const nearShare = len > 1e-12 ? (wLine*0.5 + pLoad*(1-aa/len)) : 0;
+            const farShare = len > 1e-12 ? (wLine*0.5 + pLoad*(aa/len)) : 0;
+            weights[String(m.near)] = (weights[String(m.near)] || 0) + f*nearShare;
+            weights[String(m.far)] = (weights[String(m.far)] || 0) + f*farShare;
+          });
+        }
+      });
+      return nodes.map(n => ({ node:n.label, id:n.id, weight:Math.max(0, weights[String(n.id)] || 0) }));
+    }
+    function interpolateSpectrum(spectrum, T) {
+      // Response spectrum ordinates are looked up by log-log interpolation.
+      // Zero/negative T or Sa points are ignored because log-log interpolation requires positive values.
+      const pts = (spectrum || [])
+        .map(p=>({T:+p.T||0, Sa:+p.Sa||0}))
+        .filter(p=>p.T>0 && p.Sa>0)
+        .sort((a,b)=>a.T-b.T);
+      if (!pts.length) return 0;
+      if (pts.length === 1) return pts[0].Sa;
+      if (T <= pts[0].T) return pts[0].Sa;
+      if (T >= pts[pts.length-1].T) return pts[pts.length-1].Sa;
+      for (let i=0;i<pts.length-1;i++) {
+        const a=pts[i], b=pts[i+1];
+        if (T >= a.T && T <= b.T) {
+          const logRatio=(Math.log(T)-Math.log(a.T))/(Math.log(b.T)-Math.log(a.T));
+          return Math.exp(Math.log(a.Sa)+logRatio*(Math.log(b.Sa)-Math.log(a.Sa)));
+        }
+      }
+      return pts[pts.length-1].Sa;
+    }
+    function invMat(A){
+      const n=A.length; if(!n) return [];
+      const M=A.map((r,i)=>[...r,...Array.from({length:n},(_,j)=>i===j?1:0)]);
+      for(let c=0;c<n;c++){
+        let p=c; for(let r=c+1;r<n;r++) if(Math.abs(M[r][c])>Math.abs(M[p][c])) p=r;
+        [M[c],M[p]]=[M[p],M[c]];
+        if(Math.abs(M[c][c])<1e-12) return null;
+        const piv=M[c][c]; for(let j=0;j<2*n;j++) M[c][j]/=piv;
+        for(let r=0;r<n;r++) if(r!==c){ const f=M[r][c]; for(let j=0;j<2*n;j++) M[r][j]-=f*M[c][j]; }
+      }
+      return M.map(r=>r.slice(n));
+    }
+    function srss(vals){ return Math.sqrt(vals.reduce((s,v)=>s+(+v||0)*(+v||0),0)); }
+    function combineMemberResults(modalResults){
+      if(!modalResults.length) return [];
+      const base = modalResults[0].memberResults || [];
+      return base.map((bm,mi)=>{
+        const all = modalResults.map(r => (r.memberResults || [])[mi]).filter(Boolean);
+        const combineArr = (arrName, key) => (bm[arrName]||[]).map((p,idx)=>({ ...p, [key]:srss(all.map(mr => (((mr[arrName]||[])[idx]||{})[key] || 0))) }));
+        return { ...bm,
+          qDisplay:bm.qDisplay.map((_,j)=>srss(all.map(mr => (mr.qDisplay||[])[j]||0))),
+          q:bm.q.map((_,j)=>srss(all.map(mr => (mr.q||[])[j]||0))),
+          axd:combineArr('axd','N'), sfd:combineArr('sfd','V'), bmd:combineArr('bmd','M'),
+          defl:(bm.defl||[]).map((p,idx)=>({ ...p, ux:srss(all.map(mr=>(((mr.defl||[])[idx]||{}).ux||0))), uy:srss(all.map(mr=>(((mr.defl||[])[idx]||{}).uy||0))), vLocal:srss(all.map(mr=>(((mr.defl||[])[idx]||{}).vLocal||0))), thetaLocal:srss(all.map(mr=>(((mr.defl||[])[idx]||{}).thetaLocal||0))) }))
+        };
+      });
+    }
+    function computeMassBasedModes(nodes, members, loadCases, massSource, units, maxModes=999) {
+      const g = solverGravity(units);
+      const baseModel = zeroLoadModel(nodes, members);
+      const base = solveFrame(baseModel.nodes, baseModel.members, units);
+      if (base.error) return { error:base.error, eigenModes:[] };
+      const massWeights = buildMassWeights(nodes, members, loadCases, massSource || DEFAULT_MASS_SOURCE, units);
+      const nodeIndex = {}; base.nodes.forEach((n,i)=>nodeIndex[String(n.id)] = i);
+      const massByDof = Array(base.nodes.length*3).fill(0);
+      massWeights.forEach(w => {
+        const i=nodeIndex[String(w.id)];
+        if(i===undefined) return;
+        const m=(+w.weight||0)/g;
+        massByDof[i*3]=m;
+        massByDof[i*3+1]=m;
+      });
+      const free = base.freeDofs || [];
+      const massedFree = free.filter(dof => (dof%3 !== 2) && (massByDof[dof] || 0) > 1e-12);
+      const masslessFree = free.filter(dof => !massedFree.includes(dof));
+      if (massedFree.length === 0) return { error:"Mass-based modes could not be solved: the mass source produced zero translational mass.", eigenModes:[], massWeights };
+      const K = base.K;
+      let Kdyn = subMat(K, massedFree, massedFree);
+      let expandFromM = (q) => { const full=Array(base.nodes.length*3).fill(0); massedFree.forEach((dof,i)=>full[dof]=q[i]); return full; };
+      if (masslessFree.length) {
+        const Kmm=subMat(K,massedFree,massedFree), Kmn=subMat(K,massedFree,masslessFree), Knm=subMat(K,masslessFree,massedFree), Knn=subMat(K,masslessFree,masslessFree);
+        const invKnn=invMat(Knn);
+        if (invKnn) {
+          Kdyn = matSub(Kmm, matMul(matMul(Kmn, invKnn), Knm));
+          expandFromM = (q) => {
+            const aux = matVecMul(matMul(invKnn, Knm), q).map(v=>-v);
+            const full=Array(base.nodes.length*3).fill(0);
+            massedFree.forEach((dof,i)=>full[dof]=q[i]);
+            masslessFree.forEach((dof,i)=>full[dof]=aux[i]||0);
+            return full;
+          };
+        }
+      }
+      const mDiag = massedFree.map(dof=>massByDof[dof]);
+      const A = Kdyn.map((r,i)=>r.map((v,j)=>v/Math.sqrt(mDiag[i]*mDiag[j])));
+      const eig = jacobiEigenSymmetric(A);
+      const eigenModes = [];
+      const nModes = Math.min(+maxModes || eig.values.length, eig.values.length);
+      const totalMassX = massedFree.filter(dof => dof%3===0).reduce((s,dof)=>s+(massByDof[dof]||0),0);
+      const totalMassY = massedFree.filter(dof => dof%3===1).reduce((s,dof)=>s+(massByDof[dof]||0),0);
+      for(let mi=0; mi<nModes; mi++){
+        const lambda=eig.values[mi];
+        if(!Number.isFinite(lambda) || lambda<=1e-12) continue;
+        const y=eig.vectors[mi] || [];
+        let q = y.map((v,i)=>v/Math.sqrt(mDiag[i]));
+        const maxAbs=Math.max(...q.map(v=>Math.abs(v)),1e-12);
+        q=q.map(v=>v/maxAbs);
+        const fullPhi=expandFromM(q);
+        const mPhiPhi = fullPhi.reduce((s,v,dof)=>s+(massByDof[dof]||0)*v*v,0);
+        const gammaX = Math.abs(mPhiPhi)>1e-12 ? fullPhi.reduce((s,v,dof)=>s+(dof%3===0?(massByDof[dof]||0)*v:0),0)/mPhiPhi : 0;
+        const gammaY = Math.abs(mPhiPhi)>1e-12 ? fullPhi.reduce((s,v,dof)=>s+(dof%3===1?(massByDof[dof]||0)*v:0),0)/mPhiPhi : 0;
+        const effMassX = gammaX*gammaX*mPhiPhi;
+        const effMassY = gammaY*gammaY*mPhiPhi;
+        const omega=Math.sqrt(lambda), period=2*Math.PI/omega, frequency=1/period;
+        const components=(base.freeDofs||[]).map(dof=>({ label:makeDofLabel(base.nodes,dof), value:fullPhi[dof]||0 }));
+        eigenModes.push({
+          mode:mi+1, modeSource:"mass", lambda, omega, period, frequency,
+          gammaX, gammaY, effectiveMassX:effMassX, effectiveMassY:effMassY,
+          participationX:totalMassX>1e-12 ? effMassX/totalMassX*100 : 0,
+          participationY:totalMassY>1e-12 ? effMassY/totalMassY*100 : 0,
+          full:fullPhi,
+          reduced:(base.freeDofs||[]).map(dof=>fullPhi[dof]||0),
+          components
+        });
+      }
+      return { eigenModes, massWeights, massByDof, massedFree, totalMassX, totalMassY, modeSource:"mass" };
+    }
+
+    function solveResponseSpectrum(nodes, members, loadCases, massSource, rsSettings, units) {
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+      const g = solverGravity(units);
+      const baseModel = zeroLoadModel(nodes, members);
+      const base = solveFrame(baseModel.nodes, baseModel.members, units);
+      if (base.error) return { error:base.error };
+      const massWeights = buildMassWeights(nodes, members, loadCases, massSource, units);
+      const nodeIndex = {}; base.nodes.forEach((n,i)=>nodeIndex[String(n.id)] = i);
+      const massByDof = Array(base.nodes.length*3).fill(0);
+      massWeights.forEach(w => { const i=nodeIndex[String(w.id)]; if(i===undefined) return; const m=(+w.weight||0)/g; massByDof[i*3]=m; massByDof[i*3+1]=m; });
+      const free = base.freeDofs || [];
+      const massedFree = free.filter(dof => (dof%3 !== 2) && (massByDof[dof] || 0) > 1e-12);
+      const masslessFree = free.filter(dof => !massedFree.includes(dof));
+      if (massedFree.length === 0) return { error:"Response Spectrum could not be solved: the mass source produced zero translational mass." };
+      const K = base.K;
+      let Kdyn = subMat(K, massedFree, massedFree);
+      let expandFromM = (q) => { const full=Array(base.nodes.length*3).fill(0); massedFree.forEach((dof,i)=>full[dof]=q[i]); return full; };
+      if (masslessFree.length) {
+        const Kmm=subMat(K,massedFree,massedFree), Kmn=subMat(K,massedFree,masslessFree), Knm=subMat(K,masslessFree,massedFree), Knn=subMat(K,masslessFree,masslessFree);
+        const invKnn=invMat(Knn);
+        if (invKnn) {
+          Kdyn = matSub(Kmm, matMul(matMul(Kmn, invKnn), Knm));
+          expandFromM = (q) => {
+            const aux = matVecMul(matMul(invKnn, Knm), q).map(v=>-v);
+            const full=Array(base.nodes.length*3).fill(0);
+            massedFree.forEach((dof,i)=>full[dof]=q[i]); masslessFree.forEach((dof,i)=>full[dof]=aux[i]||0);
+            return full;
+          };
+        }
+      }
+      const mDiag = massedFree.map(dof=>massByDof[dof]);
+      const A = Kdyn.map((r,i)=>r.map((v,j)=>v/Math.sqrt(mDiag[i]*mDiag[j])));
+      const eig = jacobiEigenSymmetric(A);
+      const direction = (rsSettings.direction || 'X').toUpperCase();
+      const damping = Math.max(0.1, +rsSettings.damping || 5);
+      const dampingScale = Math.sqrt(5/damping);
+      const modesToUse = Math.min(+rsSettings.modesToUse || eig.values.length, eig.values.length);
+      const totalMass = massedFree.filter(dof => (direction==='Y' ? dof%3===1 : dof%3===0)).reduce((s,dof)=>s+(massByDof[dof]||0),0);
+      const modalResults = [];
+      const modalRows = [];
+      const eigenModes = [];
+      for(let mi=0; mi<modesToUse; mi++){
+        const lambda=eig.values[mi]; if(!Number.isFinite(lambda) || lambda<=1e-12) continue;
+        const y=eig.vectors[mi] || [];
+        let q = y.map((v,i)=>v/Math.sqrt(mDiag[i]));
+        const maxAbs=Math.max(...q.map(v=>Math.abs(v)),1e-12); q=q.map(v=>v/maxAbs);
+        const fullPhi=expandFromM(q);
+        const mPhiPhi = fullPhi.reduce((s,v,dof)=>s+(massByDof[dof]||0)*v*v,0);
+        const mPhiR = fullPhi.reduce((s,v,dof)=>s+((direction==='Y'?dof%3===1:dof%3===0)?(massByDof[dof]||0)*v:0),0);
+        const gamma = Math.abs(mPhiPhi)>1e-12 ? mPhiR/mPhiPhi : 0;
+        const omega=Math.sqrt(lambda), period=2*Math.PI/omega, frequency=1/period;
+        const Sa = interpolateSpectrum(rsSettings.spectrum, period) * dampingScale * (+rsSettings.scaleFactor || 1);
+        const effMass = gamma*gamma*mPhiPhi;
+        const participation = totalMass>1e-12 ? effMass/totalMass*100 : 0;
+        const F=Array(base.nodes.length*3).fill(0);
+        fullPhi.forEach((phi,dof)=>{ if(direction==='Y'?dof%3===1:dof%3===0) F[dof]=(massByDof[dof]||0)*phi*gamma*Sa*g; });
+        const modalNodes=base.nodes.map((n,i)=>({...n, fx:F[i*3]||0, fy:F[i*3+1]||0, mz:0}));
+        const solved=solveFrame(modalNodes, baseModel.members, units);
+        if(!solved.error) modalResults.push(solved);
+        modalRows.push({ mode:mi+1, lambda, omega, period, frequency, Sa, gamma, effMass, participation, baseShear:Sa*g*effMass });
+        const components=(base.freeDofs||[]).map(dof=>({ label:makeDofLabel(base.nodes,dof), value:fullPhi[dof]||0 }));
+        eigenModes.push({ mode:mi+1, modeSource:"mass", lambda, omega, period, frequency, Sa, gamma, effectiveMass:effMass, participation, full:fullPhi, reduced:(base.freeDofs||[]).map(dof=>fullPhi[dof]||0), components });
+      }
+      if (!modalResults.length) return { error:"Response Spectrum could not be solved: no valid dynamic modes were found." };
+      const nDOF=base.nodes.length*3;
+      const D=Array(nDOF).fill(0).map((_,i)=>srss(modalResults.map(r=>(r.D||[])[i]||0)));
+      const displacements=base.nodes.map((n,i)=>({ label:n.label, ux:D[i*3], uy:D[i*3+1], rz:D[i*3+2] }));
+      const reactions=base.nodes.map((n,i)=>({ label:n.label, support:n.support, Rx:srss(modalResults.map(r=>(r.reactions[i]||{}).Rx||0)), Ry:srss(modalResults.map(r=>(r.reactions[i]||{}).Ry||0)), Mz:srss(modalResults.map(r=>(r.reactions[i]||{}).Mz||0)) }));
+      return { ...base, isResponseSpectrum:true, D, displacements, reactions, memberResults:combineMemberResults(modalResults), eigenModes,
+        responseSpectrum:{ settings:{...rsSettings, dampingScale, direction}, massWeights, modalRows, totalMass, srssBaseShear:srss(modalRows.map(r=>r.baseShear)), modalResultsCount:modalResults.length } };
+    }
+    function combinePointSeries(seriesList, keys) {
+      const refItem = (seriesList || []).find(a => Array.isArray(a.series) && a.series.length);
+      const ref = refItem ? refItem.series : [];
+      return ref.map((pt, idx) => {
+        const out = { ...pt };
+        keys.forEach(k => {
+          out[k] = (seriesList || []).reduce((sum, item) => sum + (((item.series || [])[idx]?.[k] || 0) * (+item.factor || 0)), 0);
+        });
+        return out;
+      });
+    }
+    function combineMemberResultList(terms) {
+      const base = terms.find(t => t.result && !t.result.error)?.result;
+      if (!base) return [];
+      return (base.memberResults || []).map((bm, mi) => {
+        const termMembers = terms.map(t => ({ factor:t.factor, member:((t.result || {}).memberResults || [])[mi] || {} }));
+        const comb = { ...bm };
+        comb.qDisplay = (bm.qDisplay || []).map((_,j) => termMembers.reduce((sum,t)=>sum+(+t.factor||0)*(((t.member.qDisplay||[])[j])||0),0));
+        comb.q = (bm.q || []).map((_,j) => termMembers.reduce((sum,t)=>sum+(+t.factor||0)*(((t.member.q||[])[j])||0),0));
+        comb.feDisplay = (bm.feDisplay || []).map((_,j) => termMembers.reduce((sum,t)=>sum+(+t.factor||0)*(((t.member.feDisplay||[])[j])||0),0));
+        comb.axd = combinePointSeries(termMembers.map(t=>({factor:t.factor, series:t.member.axd||[]})), ["N"]);
+        comb.sfd = combinePointSeries(termMembers.map(t=>({factor:t.factor, series:t.member.sfd||[]})), ["V"]);
+        comb.bmd = combinePointSeries(termMembers.map(t=>({factor:t.factor, series:t.member.bmd||[]})), ["M"]);
+        comb.defl = combinePointSeries(termMembers.map(t=>({factor:t.factor, series:t.member.defl||[]})), ["ux","uy","vLocal","thetaLocal"]);
+        return comb;
+      });
+    }
+    function solveLoadCombination(combo, solvedCases) {
+      const caseMap = {}; (solvedCases || []).forEach(c => { caseMap[String(c.loadCase.id)] = c; });
+      const terms = (combo.terms || [])
+        .map(t => ({ factor:+t.factor || 0, case:caseMap[String(t.loadCaseId)] }))
+        .filter(t => t.case && t.case.result && !t.case.result.error && t.case.loadCase.name !== "Response Spectrum");
+      if (!terms.length) return { error:"Load combination could not be solved: no valid non-response-spectrum load cases were selected." };
+      const base = terms[0].case.result;
+      const nDOF = (base.D || []).length;
+      const D = Array(nDOF).fill(0).map((_,i)=>terms.reduce((sum,t)=>sum+(+t.factor||0)*(((t.case.result.D||[])[i])||0),0));
+      const displacements = (base.nodes || []).map((n,i)=>({ label:n.label, ux:D[i*3]||0, uy:D[i*3+1]||0, rz:D[i*3+2]||0 }));
+      const reactions = (base.reactions || []).map((br,ri)=>({
+        label:br.label, support:br.support,
+        Rx:terms.reduce((sum,t)=>sum+(+t.factor||0)*((((t.case.result.reactions||[])[ri]||{}).Rx)||0),0),
+        Ry:terms.reduce((sum,t)=>sum+(+t.factor||0)*((((t.case.result.reactions||[])[ri]||{}).Ry)||0),0),
+        Mz:terms.reduce((sum,t)=>sum+(+t.factor||0)*((((t.case.result.reactions||[])[ri]||{}).Mz)||0),0)
+      }));
+      return { ...base, isLoadCombination:true, D, displacements, reactions, memberResults:combineMemberResultList(terms.map(t=>({factor:t.factor,result:t.case.result}))),
+        loadCombination:{...combo, terms:terms.map(t=>({ loadCase:t.case.loadCase, factor:t.factor }))} };
+    }
+
+    function solveLoadCases(nodes, members, loadCases, loadCombinations, units, massSource, rsSettings) {
+      const activeCases = (loadCases || []).filter(lc => String(lc.name || '').trim());
+      const useMassModes = !!((massSource && massSource.enabled) || (rsSettings && rsSettings.enabled));
+      const massModePack = useMassModes ? computeMassBasedModes(nodes, members, activeCases, massSource || DEFAULT_MASS_SOURCE, units, Math.max(1, +(rsSettings && rsSettings.modesToUse) || 50)) : null;
+      const applyMassModes = (solved) => {
+        if (!solved || solved.error || !massModePack || massModePack.error || !(massModePack.eigenModes || []).length) return solved;
+        return { ...solved, eigenModes:massModePack.eigenModes, modeSource:"mass", dynamicModeInfo:{ massWeights:massModePack.massWeights, totalMassX:massModePack.totalMassX, totalMassY:massModePack.totalMassY } };
+      };
+      const cases = activeCases.map(lc => {
+        const model = mergeLoadCaseLoads(nodes, members, lc);
+        const solved = applyMassModes(solveFrame(model.nodes, model.members, units));
+        return { loadCase:{ id:lc.id, name:lc.name, type:lc.type, factor:+lc.factor || 0 }, result:solved };
+      });
+      if (rsSettings && rsSettings.enabled) {
+        const rs = solveResponseSpectrum(nodes, members, activeCases, massSource || DEFAULT_MASS_SOURCE, rsSettings, units);
+        cases.push({ loadCase:{ id:999999, name:"Response Spectrum", type:"Seismic", factor:+rsSettings.scaleFactor || 1 }, result:rs });
+      }
+      const comboCases = (loadCombinations || []).filter(c => c.enabled !== false && String(c.name || '').trim()).map(combo => ({
+        loadCase:{ id:2000000 + (+combo.id || 0), comboId:combo.id, name:combo.name, type:`Combination · ${combo.type || "General"}`, factor:1.0, isCombination:true },
+        result:applyMassModes(solveLoadCombination(combo, cases.filter(c => c.loadCase.name !== "Response Spectrum")))
+      }));
+      cases.push(...comboCases);
+      return { isLoadCaseBundle:true, units, cases, loadCombinations:loadCombinations || [], responseSpectrumEnabled:!!(rsSettings && rsSettings.enabled), massModesEnabled:useMassModes, massModeWarning:massModePack && massModePack.error };
+    }
+    const KEY = {
+      "1": [23.26, 4.30, 108, -23.26, -4.30, 21],
+      "2": [15.70, 23.26, -21, -15.70, 36.74, -249],
+      "3": [36.74, 15.70, 222, -36.74, -15.70, 249]
+    };
+
+    const fmt2 = v => Number.isFinite(v) ? (Math.abs(v) < 1e-9 ? "0.00" : v.toFixed(2)) : "—";
+    const fmt3 = v => Number.isFinite(v) ? (Math.abs(v) < 1e-9 ? "0.000" : v.toFixed(3)) : "—";
+    function addMat(A, dofs, kg) { for (let i=0;i<dofs.length;i++) for (let j=0;j<dofs.length;j++) A[dofs[i]][dofs[j]] += kg[i][j]; }
+    function matVec(A, x) { return A.map(r => r.reduce((s,v,i)=>s+v*x[i],0)); }
+    function transpose(A) { return A[0].map((_,i)=>A.map(r=>r[i])); }
+    function mul(A,B) {
+      const out = Array.from({length:A.length},()=>Array(B[0].length).fill(0));
+      for (let i=0;i<A.length;i++) for (let k=0;k<B.length;k++) for (let j=0;j<B[0].length;j++) out[i][j]+=A[i][k]*B[k][j];
+      return out;
+    }
+    function gauss(A,b) {
+      const n=b.length, M=A.map((r,i)=>[...r,b[i]]);
+      for (let c=0;c<n;c++) {
+        let p=c; for (let r=c+1;r<n;r++) if (Math.abs(M[r][c])>Math.abs(M[p][c])) p=r;
+        [M[c],M[p]]=[M[p],M[c]];
+        if (Math.abs(M[c][c])<1e-12) return null;
+        for (let r=c+1;r<n;r++) { const f=M[r][c]/M[c][c]; for (let k=c;k<=n;k++) M[r][k]-=f*M[c][k]; }
+      }
+      const x=Array(n).fill(0);
+      for (let i=n-1;i>=0;i--) { let s=M[i][n]; for (let j=i+1;j<n;j++) s-=M[i][j]*x[j]; x[i]=s/M[i][i]; }
+      return x;
+    }
+    function frameK(E,A,I,L) {
+      return [
+        [A*E/L,0,0,-A*E/L,0,0],
+        [0,12*E*I/L**3,6*E*I/L**2,0,-12*E*I/L**3,6*E*I/L**2],
+        [0,6*E*I/L**2,4*E*I/L,0,-6*E*I/L**2,2*E*I/L],
+        [-A*E/L,0,0,A*E/L,0,0],
+        [0,-12*E*I/L**3,-6*E*I/L**2,0,12*E*I/L**3,-6*E*I/L**2],
+        [0,6*E*I/L**2,2*E*I/L,0,-6*E*I/L**2,4*E*I/L]
+      ];
+    }
+    function Tmat(c,s) {
+      return [[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
+    }
+    function restraints(support) {
+      if (support === "Fixed") return [0,1,2];
+      if (support === "Pinned") return [0,1];
+      if (support === "Horizontal Roller") return [0];
+      if (support === "Vertical Roller") return [1];
+      return [];
+    }
+    function invertSmall(A) {
+      const n=A.length;
+      const M=A.map((r,i)=>[...r,...Array.from({length:n},(_,j)=>i===j?1:0)]);
+      for(let c=0;c<n;c++){
+        let p=c; for(let r=c+1;r<n;r++) if(Math.abs(M[r][c])>Math.abs(M[p][c])) p=r;
+        [M[c],M[p]]=[M[p],M[c]];
+        const piv=M[c][c]; if(Math.abs(piv)<1e-12) return null;
+        for(let j=0;j<2*n;j++) M[c][j]/=piv;
+        for(let r=0;r<n;r++) if(r!==c){ const f=M[r][c]; for(let j=0;j<2*n;j++) M[r][j]-=f*M[c][j]; }
+      }
+      return M.map(r=>r.slice(n));
+    }
+    function matSub(A,B){ return A.map((r,i)=>r.map((v,j)=>v-B[i][j])); }
+    function vecSub(a,b){ return a.map((v,i)=>v-b[i]); }
+    function matMul(A,B){
+      const out=Array.from({length:A.length},()=>Array(B[0].length).fill(0));
+      for(let i=0;i<A.length;i++) for(let k=0;k<B.length;k++) for(let j=0;j<B[0].length;j++) out[i][j]+=A[i][k]*B[k][j];
+      return out;
+    }
+    function matVecMul(A,x){ return A.map(r=>r.reduce((s,v,i)=>s+v*x[i],0)); }
+    function subMat(A, rows, cols){ return rows.map(r=>cols.map(c=>A[r][c])); }
+    function subVec(v, idx){ return idx.map(i=>v[i]); }
+    function expandCondensed(kc, fec, kept){
+      const k=Array.from({length:6},()=>Array(6).fill(0));
+      const fe=Array(6).fill(0);
+      kept.forEach((r,i)=>{ fe[r]=fec[i]; kept.forEach((c,j)=>{ k[r][c]=kc[i][j]; }); });
+      return { k, fe };
+    }
+    function applyMemberRelease(k, fe, release) {
+      const rel=[];
+      if (release === "Pin-Fix" || release === "Pin-Pin") rel.push(2);
+      if (release === "Fix-Pin" || release === "Pin-Pin") rel.push(5);
+      if (rel.length === 0) return { k, fe, kept:[0,1,2,3,4,5], released:[] };
+      const kept=[0,1,2,3,4,5].filter(i=>!rel.includes(i));
+      const kcc=subMat(k, kept, kept), kcr=subMat(k, kept, rel), krc=subMat(k, rel, kept), krr=subMat(k, rel, rel);
+      const fec=subVec(fe, kept), fer=subVec(fe, rel);
+      const inv=invertSmall(krr);
+      if(!inv) return { k, fe, kept:[0,1,2,3,4,5], released:[] };
+      const kCond=matSub(kcc, matMul(matMul(kcr, inv), krc));
+      const feCond=vecSub(fec, matVecMul(matMul(kcr, inv), fer));
+      const expanded=expandCondensed(kCond, feCond, kept);
+      return { ...expanded, kept, released:rel, kcc, kcr, krc, krr, fec, fer, inv };
+    }
+
+    function jacobiEigenSymmetric(A) {
+      const n = A.length;
+      if (n === 0) return { values:[], vectors:[] };
+      const a = A.map(r => r.map(v => +v || 0));
+      const V = Array.from({length:n}, (_,i) => Array.from({length:n}, (_,j) => i===j ? 1 : 0));
+      const maxIter = Math.max(80, n*n*80);
+      const eps = 1e-10;
+      for (let iter=0; iter<maxIter; iter++) {
+        let p=0, q=1, max=0;
+        for (let i=0;i<n;i++) for (let j=i+1;j<n;j++) {
+          const v = Math.abs(a[i][j]);
+          if (v > max) { max=v; p=i; q=j; }
+        }
+        if (max < eps) break;
+        const app=a[p][p], aqq=a[q][q], apq=a[p][q];
+        const tau=(aqq-app)/(2*apq);
+        const t=Math.sign(tau || 1)/(Math.abs(tau)+Math.sqrt(1+tau*tau));
+        const c=1/Math.sqrt(1+t*t), s=t*c;
+        for (let k=0;k<n;k++) if (k!==p && k!==q) {
+          const akp=a[k][p], akq=a[k][q];
+          a[k][p]=a[p][k]=c*akp-s*akq;
+          a[k][q]=a[q][k]=s*akp+c*akq;
+        }
+        a[p][p]=c*c*app-2*s*c*apq+s*s*aqq;
+        a[q][q]=s*s*app+2*s*c*apq+c*c*aqq;
+        a[p][q]=a[q][p]=0;
+        for (let k=0;k<n;k++) {
+          const vkp=V[k][p], vkq=V[k][q];
+          V[k][p]=c*vkp-s*vkq;
+          V[k][q]=s*vkp+c*vkq;
+        }
+      }
+      const modes = Array.from({length:n}, (_,i) => {
+        let vec = V.map(r => r[i]);
+        const maxAbs = Math.max(...vec.map(v => Math.abs(v)), 1e-12);
+        vec = vec.map(v => v / maxAbs);
+        const first = vec.find(v => Math.abs(v) > 1e-8);
+        if (first < 0) vec = vec.map(v => -v);
+        return { value:a[i][i], vector:vec };
+      }).sort((m1,m2)=>m1.value-m2.value);
+      return { values:modes.map(m=>m.value), vectors:modes.map(m=>m.vector) };
+    }
+
+    function makeDofLabel(nodes, dof) {
+      const n = nodes[Math.floor(dof/3)];
+      const part = ["ux", "uy", "θz"][dof % 3];
+      return `${n ? n.label : "?"}.${part}`;
+    }
+
+    function solveFrame(nodes, members, units) {
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+      const validNodes = nodes.filter(n => String(n.label).trim());
+      const nodeIndex = {}; validNodes.forEach((n,i)=>nodeIndex[String(n.label).trim()]=i);
+      const nDOF = validNodes.length*3;
+      const K = Array.from({length:nDOF},()=>Array(nDOF).fill(0));
+      const F = Array(nDOF).fill(0);
+      validNodes.forEach((n,i)=>{ F[i*3] += +n.fx || 0; F[i*3+1] += +n.fy || 0; F[i*3+2] += (+n.mz || 0) * U.momentToSolver; });
+      const built = [];
+      for (const m of members) {
+        const ni = nodeIndex[String(m.near).trim()], nj = nodeIndex[String(m.far).trim()];
+        if (ni === undefined || nj === undefined) continue;
+        const a = validNodes[ni], b = validNodes[nj];
+        const xi=(+a.x||0)*U.coordToLen, yi=(+a.y||0)*U.coordToLen, xj=(+b.x||0)*U.coordToLen, yj=(+b.y||0)*U.coordToLen;
+        const dx=xj-xi, dy=yj-yi, L=Math.hypot(dx,dy);
+        if (L < 1e-9) continue;
+        const c=dx/L, s=dy/L;
+        const E=(+m.E||29000)*U.EFactor, A=+m.A||1, I=+m.I||1;
+        const k = frameK(E,A,I,L), T = Tmat(c,s), TT = transpose(T);
+        const dofs = [ni*3,ni*3+1,ni*3+2,nj*3,nj*3+1,nj*3+2];
+        const fe = [0,0,0,0,0,0];
+        // Member loads are entered in LOCAL member axes only.
+        // qxA/qxB and qyA/qyB are start/end line loads in k/ft. Positive qx acts along local +x; positive qy acts along local +y.
+        const qxA = (+m.qxA || 0) * U.loadToFperLen, qxB = (+m.qxB || 0) * U.loadToFperLen;
+        const qyA = (+m.qyA || 0) * U.loadToFperLen, qyB = (+m.qyB || 0) * U.loadToFperLen;
+        if (Math.abs(qxA)>1e-12 || Math.abs(qxB)>1e-12) {
+          fe[0] += L * (2*qxA + qxB) / 6;
+          fe[3] += L * (qxA + 2*qxB) / 6;
+        }
+        if (Math.abs(qyA)>1e-12 || Math.abs(qyB)>1e-12) {
+          fe[1] += L * (7*qyA + 3*qyB) / 20;
+          fe[2] += L*L * (3*qyA + 2*qyB) / 60;
+          fe[4] += L * (3*qyA + 7*qyB) / 20;
+          fe[5] += -L*L * (2*qyA + 3*qyB) / 60;
+        }
+        const Px = +m.pointPx || 0, Py = +m.pointPy || 0, aDist = (+m.pointA || 0)*U.coordToLen;
+        if ((Math.abs(Px)>1e-12 || Math.abs(Py)>1e-12) && aDist>0 && aDist<L) {
+          const bDist = L - aDist;
+          fe[0] += Px * bDist / L;
+          fe[3] += Px * aDist / L;
+          fe[1] += Py*bDist*bDist*(3*aDist+bDist)/(L**3);
+          fe[4] += Py*aDist*aDist*(aDist+3*bDist)/(L**3);
+          fe[2] += Py*aDist*bDist*bDist/(L**2);
+          fe[5] += -Py*aDist*aDist*bDist/(L**2);
+        }
+        const releaseData = applyMemberRelease(k, fe, m.release || "Fix-Fix");
+        const kUse = releaseData.k;
+        const feUse = releaseData.fe;
+        const kgUse = mul(mul(TT, kUse), T);
+        // Replace the initially assembled unreleased stiffness with the released stiffness.
+        // Assembly occurs here only after releases have been applied.
+        addMat(K, dofs, kgUse);
+        const feG = matVec(TT, feUse);
+        for (let i=0;i<6;i++) F[dofs[i]] += feG[i];
+        built.push({ m, ni, nj, a, b, L, c, s, E, A, I, k:kUse, T, fe:feUse, dofs, releaseData });
+      }
+      // Nodal spring supports are added directly to the global stiffness matrix.
+      // kx and ky are entered as force per displacement unit (for example kip/in or kN/mm).
+      // kTheta is entered as moment per radian in the displayed moment unit (for example kip·ft/rad or kN·m/rad).
+      validNodes.forEach((n,i)=>{
+        const kx = Math.max(0, +n.kx || 0);
+        const ky = Math.max(0, +n.ky || 0);
+        const kTheta = Math.max(0, +n.kTheta || 0) * U.momentToSolver;
+        K[i*3][i*3] += kx;
+        K[i*3+1][i*3+1] += ky;
+        K[i*3+2][i*3+2] += kTheta;
+      });
+      const fixed = new Set();
+      validNodes.forEach((n,i)=>restraints(n.support).forEach(r=>fixed.add(i*3+r)));
+      const free = []; for (let i=0;i<nDOF;i++) if (!fixed.has(i)) free.push(i);
+      const Kff = free.map(i=>free.map(j=>K[i][j]));
+      const Ff = free.map(i=>F[i]);
+      const eigenRaw = jacobiEigenSymmetric(Kff);
+      const dofLabels = free.map(dof => makeDofLabel(validNodes, dof));
+      const eigenModes = eigenRaw.values.map((lambda, modeIndex) => {
+        const reduced = eigenRaw.vectors[modeIndex] || [];
+        const full = Array(nDOF).fill(0);
+        free.forEach((dof, i) => full[dof] = reduced[i] || 0);
+        return {
+          mode: modeIndex + 1,
+          lambda,
+          reduced,
+          full,
+          dofLabels,
+          components: dofLabels.map((label, i) => ({ label, value: reduced[i] || 0 }))
+        };
+      });
+      const Df = gauss(Kff, Ff);
+      if (!Df) return { error:"Singular stiffness matrix. Check supports and connectivity." };
+      const D = Array(nDOF).fill(0); free.forEach((dof,i)=>D[dof]=Df[i]);
+      const reactionsFull = matVec(K,D).map((v,i)=>v-F[i]);
+      const memberResults = built.map(o => {
+        const dg = o.dofs.map(i=>D[i]);
+        const dl = matVec(o.T, dg); // local [u1, v1, theta1, u2, v2, theta2]
+        const kd = matVec(o.k, dl);
+        const q = kd.map((v,i)=>v-o.fe[i]);
+        const qDisplay = [q[0], q[1], q[2]*U.momentFromSolver, q[3], q[4], q[5]*U.momentFromSolver];
+
+        const sfd=[], bmd=[], axd=[], defl=[];
+        const raw = [];
+        for (let i=0;i<=80;i++) {
+          const x = o.L*i/80;
+          let N = q[0], V = q[1], M = -q[2];
+          const qxA = (+o.m.qxA || 0) * U.loadToFperLen, qxB = (+o.m.qxB || 0) * U.loadToFperLen;
+          const qyA = (+o.m.qyA || 0) * U.loadToFperLen, qyB = (+o.m.qyB || 0) * U.loadToFperLen;
+          const dqx = qxB - qxA;
+          const dqy = qyB - qyA;
+          N += qxA*x + dqx*x*x/(2*o.L);
+          V += qyA*x + dqy*x*x/(2*o.L);
+          M += q[1]*x + qyA*x*x/2 + dqy*x*x*x/(6*o.L);
+          const Px = +o.m.pointPx || 0, Py = +o.m.pointPy || 0, aDist=(+o.m.pointA||0)*U.coordToLen;
+          if (Math.abs(Px)>1e-12 && x>=aDist) { N += Px; }
+          if (Math.abs(Py)>1e-12 && x>=aDist) { V += Py; M += Py*(x-aDist); }
+          axd.push({x:x/U.coordToLen,N});
+          sfd.push({x:x/U.coordToLen,V});
+          bmd.push({x:x/U.coordToLen,M:M*U.momentFromSolver});
+          raw.push({x, M});
+        }
+
+        // Numerical double-integration deflected shape in the local member y direction:
+        // curvature kappa = M/(EI), theta = ∫kappa dx + C1, v = ∫theta dx + C2.
+        // Constants are selected so the curve passes through the solved end transverse displacements.
+        const thetaRaw = [0], vRaw = [0];
+        for (let i=1;i<raw.length;i++) {
+          const dx = raw[i].x - raw[i-1].x;
+          const k0 = raw[i-1].M/(o.E*o.I || 1);
+          const k1 = raw[i].M/(o.E*o.I || 1);
+          const th = thetaRaw[i-1] + 0.5*(k0+k1)*dx;
+          thetaRaw.push(th);
+          vRaw.push(vRaw[i-1] + 0.5*(thetaRaw[i-1]+th)*dx);
+        }
+        const v1 = dl[1], v2 = dl[4];
+        const C2 = v1;
+        const C1 = (v2 - v1 - vRaw[vRaw.length-1]) / o.L;
+        for (let i=0;i<raw.length;i++) {
+          const x = raw[i].x;
+          const t = o.L > 0 ? x/o.L : 0;
+          const uLocal = dl[0] + (dl[3]-dl[0])*t;
+          const vLocal = vRaw[i] + C1*x + C2;
+          const gx = (uLocal*o.c - vLocal*o.s) / U.coordToLen;
+          const gy = (uLocal*o.s + vLocal*o.c) / U.coordToLen;
+          defl.push({ x:x/U.coordToLen, ux:gx, uy:gy, vLocal:vLocal/U.coordToLen, thetaLocal:(thetaRaw[i] + C1) });
+        }
+        return { name:o.m.name||`${o.m.near}-${o.m.far}`, release:o.m.release||"Fix-Fix", near:o.m.near, far:o.m.far, xi:+o.a.x||0, yi:+o.a.y||0, xj:+o.b.x||0, yj:+o.b.y||0, L:o.L/U.coordToLen, q, qDisplay, fe:o.fe, feDisplay:[o.fe[0], o.fe[1], o.fe[2]*U.momentFromSolver, o.fe[3], o.fe[4], o.fe[5]*U.momentFromSolver], axd, sfd, bmd, defl };
+      });
+      const displacements = validNodes.map((n,i)=>({label:n.label, ux:D[i*3], uy:D[i*3+1], rz:D[i*3+2]}));
+      const reactions = validNodes.map((n,i)=>{
+        const springRx = Math.max(0, +n.kx || 0) * (D[i*3] || 0);
+        const springRy = Math.max(0, +n.ky || 0) * (D[i*3+1] || 0);
+        const springMz = Math.max(0, +n.kTheta || 0) * (D[i*3+2] || 0);
+        const hasSpring = Math.abs(+n.kx || 0) > 1e-12 || Math.abs(+n.ky || 0) > 1e-12 || Math.abs(+n.kTheta || 0) > 1e-12;
+        const supportLabel = n.support !== "Free" && hasSpring ? `${n.support} + Spring` : (hasSpring ? "Spring" : n.support);
+        return { label:n.label, support:n.support, supportLabel, hasSpring, kx:+n.kx||0, ky:+n.ky||0, kTheta:+n.kTheta||0,
+          Rx:(reactionsFull[i*3] || 0) + springRx,
+          Ry:(reactionsFull[i*3+1] || 0) + springRy,
+          Mz:(reactionsFull[i*3+2] || 0)*U.momentFromSolver + springMz,
+          springRx, springRy, springMz };
+      });
+      return { nodes:validNodes, members, D, displacements, reactions, memberResults, K, Kff, F, freeDofs:free, dofLabels, stiffnessEigenModes:eigenModes, eigenModes:[], modeSource:"none", units };
+    }
+
+    function FrameDiagram({ nodes, members, result, units, overlayMode="none", overlayScale=1, modeShape=null, showInternalTitle=true, diagramWidth=980, diagramHeight=540, padding=78, reservedRightOverride=null }) {
+      const [hover, setHover] = useState(null);
+      const W = diagramWidth, H = diagramHeight, P = padding;
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+
+      const cleanNodes = (nodes || []).filter(n => String(n.label || "").trim());
+      const nodeMap = {};
+      cleanNodes.forEach(n => { nodeMap[String(n.label).trim()] = n; });
+
+      // Frame-only geometry is ALWAYS built directly from the input nodes + input members.
+      // It does not depend on solved member results. This prevents the old disconnected-frame glitch.
+      const frameMembers = (members || []).map(m => {
+        const a = nodeMap[String(m.near || "").trim()];
+        const b = nodeMap[String(m.far || "").trim()];
+        if (!a || !b) return null;
+        return {
+          ...m,
+          xi:+a.x || 0, yi:+a.y || 0,
+          xj:+b.x || 0, yj:+b.y || 0,
+          nearNode:a, farNode:b,
+        };
+      }).filter(Boolean);
+
+      const solvedMembers = (result && result.memberResults) ? result.memberResults : [];
+      const coordX = cleanNodes.map(n => +n.x || 0).concat(frameMembers.flatMap(m => [m.xi, m.xj]));
+      const coordY = cleanNodes.map(n => +n.y || 0).concat(frameMembers.flatMap(m => [m.yi, m.yj]));
+      const minX = Math.min(...coordX, 0), maxX = Math.max(...coordX, 1);
+      const minY = Math.min(...coordY, 0), maxY = Math.max(...coordY, 1);
+      const reservedRight = reservedRightOverride !== null ? reservedRightOverride : ((overlayMode === "sfd" || overlayMode === "bmd" || overlayMode === "axial") ? 205 : 40);
+      const usableW = W - 2*P - reservedRight;
+      const usableH = H - 2*P;
+      const dx = Math.max(maxX - minX, 1e-9);
+      const dy = Math.max(maxY - minY, 1e-9);
+      const sc = Math.min(usableW / dx, usableH / dy);
+      const xOffset = P + Math.max(0, (usableW - dx*sc) / 2);
+      const yOffset = P + Math.max(0, (usableH - dy*sc) / 2);
+      const X = x => xOffset + (x - minX) * sc;
+      const Y = y => H - yOffset - (y - minY) * sc;
+
+      const unitVec = (x1,y1,x2,y2) => {
+        const ux0=x2-x1, uy0=y2-y1, L=Math.hypot(ux0,uy0)||1;
+        return { ux:ux0/L, uy:uy0/L, nx:-uy0/L, ny:ux0/L, L };
+      };
+      const overlayTitle = overlayMode === "bmd" ? `Bending Moment Diagram (${U.moment})`
+        : overlayMode === "sfd" ? `Shear Force Diagram (${U.force})`
+        : overlayMode === "axial" ? `Axial Load Diagram (${U.force})`
+        : overlayMode === "deformed" ? `Deflected Shape (${U.disp})`
+        : overlayMode === "mode" ? `Mode Shape ${modeShape ? modeShape.mode : ""}`
+        : "Frame Diagram";
+
+      const NodeCircle = ({x,y}) => <circle cx={x} cy={y} r="6" fill={CLR.bg} stroke={CLR.text} strokeWidth="1.8"/>;
+      const Support = ({n,x,y}) => {
+        const support = n.support || "Free";
+        const stroke = support === "Free" ? CLR.muted : CLR.green;
+        if (support === "Fixed") return <g><rect x={x-16} y={y+8} width="32" height="10" fill={CLR.green}/>{[0,1,2,3,4].map(i=><line key={i} x1={x-16+i*8} y1={y+20} x2={x-9+i*8} y2={y+13} stroke={CLR.green} strokeWidth="1.2" />)}</g>;
+        if (support === "Pinned") return <g><polygon points={`${x},${y+8} ${x-14},${y+30} ${x+14},${y+30}`} fill="none" stroke={stroke} strokeWidth="1.7"/><line x1={x-18} y1={y+30} x2={x+18} y2={y+30} stroke={stroke} strokeWidth="1.4"/></g>;
+        if (support === "Vertical Roller") return <g><polygon points={`${x},${y+8} ${x-14},${y+25} ${x+14},${y+25}`} fill="none" stroke={stroke} strokeWidth="1.7"/><circle cx={x-8} cy={y+31} r="4" fill="none" stroke={stroke} strokeWidth="1.3"/><circle cx={x+8} cy={y+31} r="4" fill="none" stroke={stroke} strokeWidth="1.3"/><line x1={x-18} y1={y+36} x2={x+18} y2={y+36} stroke={stroke} strokeWidth="1.2"/></g>;
+        if (support === "Horizontal Roller") return <g><polygon points={`${x-8},${y} ${x-27},${y-14} ${x-27},${y+14}`} fill="none" stroke={stroke} strokeWidth="1.7"/><circle cx={x-33} cy={y-8} r="4" fill="none" stroke={stroke} strokeWidth="1.3"/><circle cx={x-33} cy={y+8} r="4" fill="none" stroke={stroke} strokeWidth="1.3"/><line x1={x-39} y1={y-18} x2={x-39} y2={y+18} stroke={stroke} strokeWidth="1.2"/></g>;
+        return null;
+      };
+      const SpringSupports = ({n,x,y}) => {
+        const kx = Math.max(0, +n.kx || 0);
+        const ky = Math.max(0, +n.ky || 0);
+        const kTheta = Math.max(0, +n.kTheta || 0);
+        if (kx <= 1e-12 && ky <= 1e-12 && kTheta <= 1e-12) return null;
+        const color = CLR.yellow;
+        const zig = (pts) => pts.map(p => `${p[0]},${p[1]}`).join(' ');
+        return <g>
+          {kx > 1e-12 && <g>
+            <title>{`Horizontal spring support kx = ${fmt3(kx)}`}</title>
+            <line x1={x+7} y1={y} x2={x+12} y2={y} stroke={color} strokeWidth="1.5"/>
+            <polyline points={zig([[x+12,y],[x+16,y-4],[x+20,y+4],[x+24,y-4],[x+28,y+4],[x+32,y]])} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+            <line x1={x+32} y1={y-8} x2={x+32} y2={y+8} stroke={color} strokeWidth="1.5"/>
+            <line x1={x+36} y1={y-8} x2={x+36} y2={y+8} stroke={color} strokeWidth="1.5"/>
+            <line x1={x+40} y1={y-8} x2={x+40} y2={y+8} stroke={color} strokeWidth="1.5"/>
+            <text x={x+26} y={y-10} textAnchor="middle" fill={color} fontSize="9" fontWeight="800">kx</text>
+          </g>}
+          {ky > 1e-12 && <g>
+            <title>{`Vertical spring support ky = ${fmt3(ky)}`}</title>
+            <line x1={x} y1={y-7} x2={x} y2={y-12} stroke={color} strokeWidth="1.5"/>
+            <polyline points={zig([[x,y-12],[x-4,y-16],[x+4,y-20],[x-4,y-24],[x+4,y-28],[x,y-32]])} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+            <line x1={x-8} y1={y-32} x2={x+8} y2={y-32} stroke={color} strokeWidth="1.5"/>
+            <line x1={x-8} y1={y-36} x2={x+8} y2={y-36} stroke={color} strokeWidth="1.5"/>
+            <line x1={x-8} y1={y-40} x2={x+8} y2={y-40} stroke={color} strokeWidth="1.5"/>
+            <text x={x+11} y={y-28} fill={color} fontSize="9" fontWeight="800">ky</text>
+          </g>}
+          {kTheta > 1e-12 && <g>
+            <title>{`Rotational spring support kθ = ${fmt3(kTheta)}`}</title>
+            <path d={`M ${x-17} ${y-17} C ${x-24} ${y-16}, ${x-24} ${y-4}, ${x-17} ${y-3} C ${x-10} ${y-2}, ${x-10} ${y-14}, ${x-17} ${y-15} C ${x-22} ${y-16}, ${x-22} ${y-7}, ${x-16} ${y-8}`} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <polygon points={`${x-13},${y-7} ${x-16},${y-12} ${x-18},${y-6}`} fill={color}/>
+            <text x={x-28} y={y-19} fill={color} fontSize="9" fontWeight="800">kθ</text>
+          </g>}
+        </g>;
+      };
+      const formatLoad = v => Number.isFinite(+v) ? (+v).toFixed(Math.abs(+v)>=10 ? 1 : 2).replace(/\.0+$/,"").replace(/(\.\d*[1-9])0+$/, "$1") : "0";
+
+      return <svg width={W} height={H} style={{display:"block",margin:"0 auto",overflow:"visible"}} onMouseLeave={()=>setHover(null)}>
+        <defs>
+          <filter id="frameGlow"><feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#58a6ff" floodOpacity="0.35"/></filter>
+        </defs>
+        {showInternalTitle && <text x="0" y="22" fill={CLR.accent} fontSize="16" fontWeight="800" letterSpacing="0.12em">{overlayTitle}</text>}
+
+        {/* Base frame: one connected line segment per input member */}
+        {frameMembers.map((m,idx) => {
+          const x1=X(m.xi), y1=Y(m.yi), x2=X(m.xj), y2=Y(m.yj);
+          const uv=unitVec(x1,y1,x2,y2);
+          const mx=(x1+x2)/2, my=(y1+y2)/2;
+          const qyA=+m.qyA||0, qyB=+m.qyB||0, qxA=+m.qxA||0, qxB=+m.qxB||0;
+          const hasUDL=(overlayMode === "none") && (Math.abs(qyA)>1e-12||Math.abs(qyB)>1e-12||Math.abs(qxA)>1e-12||Math.abs(qxB)>1e-12);
+          return <g key={`member-${m.id || idx}`}>
+            {/* High-contrast member backbone: draw every input member visibly */}
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#020617" strokeWidth="9" strokeLinecap="round" opacity="0.95"/>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7dd3fc" strokeWidth="5.5" strokeLinecap="round" filter="url(#frameGlow)"/>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={CLR.accent} strokeWidth="2" strokeLinecap="round"/>
+            <text x={mx+9} y={my-9} fill={CLR.text} fontSize="12" fontWeight="800">{m.name || `${m.near}-${m.far}`}</text>
+            {hasUDL && (()=>{
+              const nArr=Math.max(5,Math.round(uv.L/28));
+              const qMax=Math.max(Math.abs(qyA),Math.abs(qyB),Math.abs(qxA),Math.abs(qxB),1);
+              const arrows=[];
+              for(let j=0;j<nArr;j++){
+                const t=nArr===1?0.5:j/(nArr-1), bx=x1+t*(x2-x1), by=y1+t*(y2-y1);
+                const qy=qyA+(qyB-qyA)*t, qx=qxA+(qxB-qxA)*t;
+                const px=qx*uv.ux - qy*uv.nx, py=qx*uv.uy - qy*uv.ny;
+                const mag=Math.hypot(px,py)||1, len=10+18*Math.hypot(qx,qy)/qMax;
+                arrows.push({bx,by,dx:px/mag,dy:py/mag,len});
+              }
+              const topPts=arrows.map(ar=>`${ar.bx-ar.dx*ar.len},${ar.by-ar.dy*ar.len}`).join(" ");
+              return <g><polyline points={topPts} fill="none" stroke={CLR.yellow} strokeWidth="1.3"/>{arrows.map((ar,j)=><g key={j}><line x1={ar.bx-ar.dx*ar.len} y1={ar.by-ar.dy*ar.len} x2={ar.bx-ar.dx*3} y2={ar.by-ar.dy*3} stroke={CLR.yellow} strokeWidth="1.3"/><polygon points={`${ar.bx},${ar.by} ${ar.bx-ar.dx*8-ar.dy*3},${ar.by-ar.dy*8+ar.dx*3} ${ar.bx-ar.dx*8+ar.dy*3},${ar.by-ar.dy*8-ar.dx*3}`} fill={CLR.yellow}/></g>)}<text x={mx} y={my-36} textAnchor="middle" fill={CLR.yellow} fontSize="10" fontWeight="800">
+                {(() => { const qyOn = Math.abs(qyA)>1e-12 || Math.abs(qyB)>1e-12; const qxOn = Math.abs(qxA)>1e-12 || Math.abs(qxB)>1e-12; if (qyOn && qxOn) return `qx: ${formatLoad(qxA)} | ${formatLoad(qxB)} ${U.load} · qy: ${formatLoad(qyA)} | ${formatLoad(qyB)} ${U.load}`; if (qyOn) return `${formatLoad(qyA)} ${U.load} | ${formatLoad(qyB)} ${U.load}`; return `${formatLoad(qxA)} ${U.load} | ${formatLoad(qxB)} ${U.load}`; })()}
+              </text></g>;
+            })()}
+          </g>;
+        })}
+
+        {result && (overlayMode === "sfd" || overlayMode === "bmd" || overlayMode === "axial") && solvedMembers.map((mr,idx)=>{
+          const data = overlayMode === "sfd" ? mr.sfd : overlayMode === "bmd" ? mr.bmd : mr.axd;
+          if (!data || data.length < 2) return null;
+          const x1=X(mr.xi), y1=Y(mr.yi), x2=X(mr.xj), y2=Y(mr.yj);
+          const uv=unitVec(x1,y1,x2,y2);
+          const valueKey = overlayMode === "sfd" ? "V" : overlayMode === "bmd" ? "M" : "N";
+          const maxAbs=Math.max(...data.map(p=>Math.abs(p[valueKey])),1e-9);
+          const amp=(overlayMode === "bmd" ? 48 : 38)*overlayScale;
+          const color=overlayMode === "sfd" ? CLR.teal : overlayMode === "bmd" ? CLR.violet : CLR.red;
+          const curvePts=data.map(p=>{ const t=(mr.L>0 ? p.x/mr.L : 0); const bx=x1+t*(x2-x1), by=y1+t*(y2-y1); const val=p[valueKey]; return { sx:bx+uv.nx*(val/maxAbs)*amp, sy:by+uv.ny*(val/maxAbs)*amp, bx, by, val, x:p.x }; });
+          const areaPath=`M ${x1},${y1} `+curvePts.map(p=>`L ${p.sx},${p.sy}`).join(" ")+` L ${x2},${y2} Z`;
+          const hatchStep=Math.max(4,Math.floor(curvePts.length/14));
+          const maxPt=curvePts.reduce((a,p)=>Math.abs(p.val)>Math.abs(a.val)?p:a,curvePts[0]);
+          return <g key={`overlay-${idx}`} opacity="0.98">
+            <path d={areaPath} fill={color+"24"} stroke={color} strokeWidth="2.4"/>
+            {curvePts.filter((_,i)=>i%hatchStep===0).map((p,i)=><line key={i} x1={p.bx} y1={p.by} x2={p.sx} y2={p.sy} stroke={color} strokeWidth="0.85" opacity="0.8"/>)}
+            <polyline points={curvePts.map(p=>`${p.sx},${p.sy}`).join(" ")} fill="none" stroke={color} strokeWidth="2.6" strokeLinejoin="round"/>
+            <text x={maxPt.sx+6} y={maxPt.sy-6} fill={color} fontSize="13" fontWeight="800">{fmt2(maxPt.val)}</text>
+            {curvePts.filter((_,i)=>i%8===0).map((p,i)=><circle key={i} cx={p.sx} cy={p.sy} r="7" fill="transparent" onMouseEnter={()=>setHover({x:p.sx+12,y:p.sy-12,text:`${mr.name}  x=${fmt2(p.x)} ${U.dist}  ${overlayMode.toUpperCase()}=${fmt2(p.val)} ${overlayMode==='bmd'?U.moment:U.force}`})}><title>{`${mr.name}: x=${fmt2(p.x)} ${U.dist}, ${overlayMode.toUpperCase()}=${fmt2(p.val)} ${overlayMode==='bmd'?U.moment:U.force}`}</title></circle>)}
+          </g>;
+        })}
+
+        {result && overlayMode === "deformed" && solvedMembers.map((mr,idx)=>{
+          const pts=(mr.defl||[]).map(p=>{ const t=mr.L>0?p.x/mr.L:0; const bx=mr.xi+t*(mr.xj-mr.xi), by=mr.yi+t*(mr.yj-mr.yi); return { sx:X(bx+p.ux*overlayScale), sy:Y(by+p.uy*overlayScale), x:p.x, ux:p.ux, uy:p.uy }; });
+          if (pts.length<2) return null;
+          return <g key={`def-${idx}`}><polyline points={pts.map(p=>`${p.sx},${p.sy}`).join(" ")} fill="none" stroke={CLR.orange} strokeWidth="2.2" strokeDasharray="6,4"/>{pts.filter((_,i)=>i%8===0).map((p,i)=><circle key={i} cx={p.sx} cy={p.sy} r="7" fill="transparent" onMouseEnter={()=>setHover({x:p.sx+12,y:p.sy-12,text:`${mr.name}  x=${fmt2(p.x)} ${U.dist}  ux=${fmt3(p.ux)} ${U.disp}, uy=${fmt3(p.uy)} ${U.disp}`})}><title>{`${mr.name}: x=${fmt2(p.x)} ${U.dist}, ux=${fmt3(p.ux)} ${U.disp}, uy=${fmt3(p.uy)} ${U.disp}`}</title></circle>)}</g>;
+        })}
+
+        {result && overlayMode === "mode" && modeShape && (()=>{
+          const baseSpan = Math.max(dx, dy, 1);
+          const rawMembers = frameMembers.map((m,idx) => {
+            const iNode = result.nodes.findIndex(n => String(n.label).trim() === String(m.near).trim());
+            const jNode = result.nodes.findIndex(n => String(n.label).trim() === String(m.far).trim());
+            if (iNode < 0 || jNode < 0) return { idx, pts:[] };
+            const ux1=modeShape.full[iNode*3] || 0, uy1=modeShape.full[iNode*3+1] || 0, rz1=modeShape.full[iNode*3+2] || 0;
+            const ux2=modeShape.full[jNode*3] || 0, uy2=modeShape.full[jNode*3+1] || 0, rz2=modeShape.full[jNode*3+2] || 0;
+            const Lcoord = Math.hypot((m.xj-m.xi), (m.yj-m.yi)) || 1;
+            const c=(m.xj-m.xi)/Lcoord, sn=(m.yj-m.yi)/Lcoord;
+            const u1=ux1*c+uy1*sn, v1=-ux1*sn+uy1*c, u2=ux2*c+uy2*sn, v2=-ux2*sn+uy2*c;
+            const pts=[];
+            for (let k=0;k<=40;k++) {
+              const t=k/40;
+              const N1=1-3*t*t+2*t*t*t, N2=Lcoord*(t-2*t*t+t*t*t), N3=3*t*t-2*t*t*t, N4=Lcoord*(-t*t+t*t*t);
+              const u=u1+(u2-u1)*t;
+              const v=N1*v1+N2*rz1+N3*v2+N4*rz2;
+              const dxg=u*c-v*sn, dyg=u*sn+v*c;
+              pts.push({ x:m.xi+t*(m.xj-m.xi), y:m.yi+t*(m.yj-m.yi), dxg, dyg, t });
+            }
+            return { idx, name:m.name || `${m.near}-${m.far}`, pts };
+          });
+          const maxRaw = Math.max(...rawMembers.flatMap(r => r.pts.map(p => Math.hypot(p.dxg, p.dyg))), 1e-9);
+          const amp = baseSpan * 0.12 * overlayScale;
+          return <g>
+            {rawMembers.map(r => {
+              const pts = r.pts.map(p => ({ sx:X(p.x + p.dxg/maxRaw*amp), sy:Y(p.y + p.dyg/maxRaw*amp), p }));
+              if (pts.length < 2) return null;
+              return <g key={`mode-${r.idx}`}>
+                <polyline points={pts.map(q=>`${q.sx},${q.sy}`).join(" ")} fill="none" stroke={CLR.yellow} strokeWidth="2.6" strokeDasharray="8,4" />
+                {pts.filter((_,i)=>i%8===0).map((q,i)=><circle key={i} cx={q.sx} cy={q.sy} r="7" fill="transparent" onMouseEnter={()=>setHover({x:q.sx+12,y:q.sy-12,text:`Mode ${modeShape.mode} · ${r.name} · normalized shape`})}><title>{`Mode ${modeShape.mode}: ${r.name}`}</title></circle>)}
+              </g>;
+            })}
+            <text x={W-205} y={H-48} fill={CLR.yellow} fontSize="11" fontWeight="800">T = {fmt3(modeShape.period)} s</text>
+            <text x={W-205} y={H-32} fill={CLR.yellow} fontSize="11" fontWeight="800">λ = ω² = {fmt3(modeShape.lambda)}</text>
+            <text x={W-205} y={H-16} fill={CLR.muted} fontSize="10">Mass-based eigenvector scaled for display</text>
+          </g>;
+        })()}
+
+        {cleanNodes.map(n=>{ const x=X(+n.x||0), y=Y(+n.y||0); return <g key={`node-${n.id || n.label}`}><Support n={n} x={x} y={y}/><SpringSupports n={n} x={x} y={y}/><NodeCircle x={x} y={y}/><text x={x-18} y={y-12} fill={CLR.text} fontWeight="800">{n.label}</text>{overlayMode === "none" && (+n.fx||0)!==0 && <g><line x1={x-28} y1={y} x2={x-8} y2={y} stroke={CLR.orange} strokeWidth="2"/><polygon points={`${x-8},${y} ${x-15},${y-4} ${x-15},${y+4}`} fill={CLR.orange}/><text x={x-58} y={y-6} fill={CLR.orange}>{n.fx} {U.force}</text></g>}{overlayMode === "none" && (+n.fy||0)!==0 && <g><line x1={x} y1={y-28} x2={x} y2={y-8} stroke={CLR.orange} strokeWidth="2"/><polygon points={`${x},${y-8} ${x-4},${y-15} ${x+4},${y-15}`} fill={CLR.orange}/><text x={x+8} y={y-22} fill={CLR.orange}>{n.fy} {U.force}</text></g>}</g>})}
+
+        {(overlayMode === "bmd" || overlayMode === "sfd" || overlayMode === "axial") && <g transform={`translate(${W-205},${P+20})`}><rect x="0" y="0" width="180" height="120" rx="8" fill={CLR.bg} stroke={CLR.border}/><text x="90" y="28" textAnchor="middle" fill={CLR.accent} fontWeight="800" fontSize="12">{overlayMode === "bmd" ? "BENDING MOMENT" : overlayMode === "sfd" ? "SHEAR FORCE" : "AXIAL LOAD"}</text><line x1="25" y1="55" x2="155" y2="55" stroke={CLR.accent} strokeWidth="3"/><path d="M25,55 C65,82 115,82 155,55" fill={(overlayMode === "bmd" ? CLR.violet : overlayMode === "sfd" ? CLR.teal : CLR.red)+"22"} stroke={overlayMode === "bmd" ? CLR.violet : overlayMode === "sfd" ? CLR.teal : CLR.red}/><text x="25" y="93" fill={overlayMode === "bmd" ? CLR.violet : overlayMode === "sfd" ? CLR.teal : CLR.red} fontSize="11">Hover for values</text><text x="25" y="110" fill={CLR.muted} fontSize="10">Units: {overlayMode === "bmd" ? U.moment : U.force}</text></g>}
+        {hover && <g pointerEvents="none"><rect x={hover.x} y={hover.y-22} width={Math.min(430, hover.text.length*7+18)} height="26" rx="5" fill={CLR.bg} stroke={CLR.accent}/><text x={hover.x+9} y={hover.y-5} fill={CLR.text} fontSize="11">{hover.text}</text></g>}
+      </svg>;
+    }
+
+    function Chart({ data, yKey, title, color }) {
+      if (!data || data.length === 0) return null;
+      return <TwoWayStyleChart data={data} yKey={yKey} color={color} label={title} unit="" compact={true} />;
+    }
+
+    function TwoWayStyleChart({ data, yKey, color, label, unit="", compact=false, invertMoment=false, report=false }) {
+      if (!data || data.length === 0) return null;
+      const W = report ? 900 : 900;
+      const H = report ? 175 : (compact ? 180 : 240);
+      const PADX = report ? 58 : 56;
+      const PADY = report ? 24 : 24;
+      const xs = data.map(d => +d.x || 0);
+      const ys = data.map(d => +(d[yKey] || 0));
+      const minX = Math.min(...xs, 0);
+      const maxX = Math.max(...xs, 1);
+      const minY = Math.min(...ys, 0);
+      const maxY = Math.max(...ys, 0);
+      const rangeX = maxX - minX || 1;
+      const maxAbs = Math.max(Math.abs(minY), Math.abs(maxY), 1e-9);
+      const scX = (W - 2 * PADX) / rangeX;
+      const scY = (H - 2 * PADY) / (maxAbs * 2.2 || 1);
+      const zeroY = H / 2;
+      const toSvg = (x, y) => ({
+        sx: PADX + (x - minX) * scX,
+        sy: invertMoment ? (H / 2 + y * scY) : (H / 2 - y * scY)
+      });
+      const pts = data.map(d => {
+        const { sx, sy } = toSvg(+d.x || 0, +(d[yKey] || 0));
+        return `${sx},${sy}`;
+      }).join(" ");
+      const areaPath = data.map((d, i) => {
+        const { sx, sy } = toSvg(+d.x || 0, +(d[yKey] || 0));
+        return (i === 0 ? `M ${sx},${zeroY} L ${sx},${sy}` : `L ${sx},${sy}`);
+      }).join(" ") + ` L ${toSvg(+data[data.length-1].x || 0, 0).sx},${zeroY} Z`;
+      const tickVals = [maxAbs/2, maxAbs, -maxAbs/2, -maxAbs].filter(v => Math.abs(v) > 1e-9);
+      const step = Math.max(1, Math.round(data.length / (report ? 6 : 8)));
+      const fmtTick = v => Number.isFinite(v) ? (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2)) : "—";
+      return (
+        <svg className={report ? "report-svg" : undefined} width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display:"block", margin:"0 auto", background:"transparent", overflow:"visible" }}>
+          <line x1={PADX} y1={zeroY} x2={W-PADX} y2={zeroY} stroke={CLR.border} strokeWidth={1} />
+          {tickVals.map((v, i) => {
+            const y = invertMoment ? (H/2 + v * scY) : (H/2 - v * scY);
+            if (y < 4 || y > H-4) return null;
+            return (
+              <g key={i}>
+                <line x1={PADX-3} y1={y} x2={W-PADX} y2={y} stroke={CLR.border} strokeWidth={0.5} strokeDasharray="3,3" />
+                <text x={PADX-5} y={y+4} textAnchor="end" fontSize={report ? 8 : 9} fill={CLR.muted}>{fmtTick(v)}</text>
+              </g>
+            );
+          })}
+          <path d={areaPath} fill={color+"33"} />
+          <polyline points={pts} fill="none" stroke={color} strokeWidth={report ? 2 : 2} strokeLinejoin="round" />
+          {data.filter((_, i) => i % step === 0 || i === data.length - 1).map((d, i) => {
+            const { sx } = toSvg(+d.x || 0, 0);
+            return <text key={i} x={sx} y={H-4} textAnchor="middle" fontSize={report ? 8 : 9} fill={CLR.muted}>{fmtTick(+d.x || 0)}</text>;
+          })}
+          <text x={PADX} y={12} fontSize={report ? 9 : 10} fill={color} fontWeight="700">{label}{unit ? ` [${unit}]` : ""}</text>
+          <text x={W-PADX} y={H-4} textAnchor="end" fontSize={report ? 8 : 9} fill={CLR.muted}>x</text>
+          <line x1={PADX} y1={PADY} x2={PADX} y2={H-PADY} stroke={CLR.border} strokeWidth={1} />
+        </svg>
+      );
+    }
+
+    function MemberDiagram({ member, dataType, title, color, unitLabel }) {
+      if (!member) return null;
+      const yKey = dataType === "N" ? "N" : dataType === "V" ? "V" : dataType === "M" ? "M" : dataType === "theta" ? "thetaLocal" : "vLocal";
+      const data = dataType === "N" ? (member.axd || []) : dataType === "V" ? (member.sfd || []) : dataType === "M" ? (member.bmd || []) : (member.defl || []);
+      if (!data || data.length === 0) return null;
+      return <TwoWayStyleChart data={data} yKey={yKey} color={color} label={`${title} — member ${member.name}`} unit={unitLabel} invertMoment={dataType === "M"} />;
+    }
+
+    function reportSeriesStats(data, key) {
+      const vals = (data || []).map(p => ({ x:+p.x || 0, y:+p[key] || 0 })).filter(p => Number.isFinite(p.y));
+      if (!vals.length) return { min:null, max:null, start:null, end:null, labelPts:[] };
+      const min = vals.reduce((a,p)=>p.y<a.y?p:a, vals[0]);
+      const max = vals.reduce((a,p)=>p.y>a.y?p:a, vals[0]);
+      const start = vals[0], end = vals[vals.length-1];
+      const labelPts = [];
+      [start, end, max, min].forEach((p,idx) => {
+        if (!p) return;
+        const duplicate = labelPts.some(q => Math.abs(q.x-p.x) < 1e-9 && Math.abs(q.y-p.y) < 1e-9);
+        if (!duplicate) labelPts.push({ ...p, role:["Near", "Far", "Max", "Min"][idx] });
+      });
+      return { min, max, start, end, labelPts };
+    }
+
+    function ReportDiagram({ member, dataType, title, color, unitLabel }) {
+      if (!member) return null;
+      const yKey = dataType === "N" ? "N" : dataType === "V" ? "V" : dataType === "M" ? "M" : "vLocal";
+      const data = dataType === "N" ? (member.axd || []) : dataType === "V" ? (member.sfd || []) : dataType === "M" ? (member.bmd || []) : (member.defl || []);
+      if (!data || data.length < 2) return null;
+      const stats = reportSeriesStats(data, yKey);
+      return <div className="report-diagram-block">
+        <TwoWayStyleChart data={data} yKey={yKey} color={color} label={title} unit={unitLabel} invertMoment={dataType === "M"} report={true} />
+        <div className="report-note">Max = {stats.max ? `${fmt3(stats.max.y)} ${unitLabel} at x=${fmt2(stats.max.x)}` : "—"}; Min = {stats.min ? `${fmt3(stats.min.y)} ${unitLabel} at x=${fmt2(stats.min.x)}` : "—"}.</div>
+      </div>;
+    }
+
+
+    function AnalysisPrintReport({ result, units, reportTitle="Analysis Results", reportSubtitle="" }) {
+      if (!result || result.error) return null;
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+      const printedAt = new Date().toLocaleString();
+      const memberSummary = (result.memberResults || []).map(m => ({
+        m,
+        nStats: reportSeriesStats(m.axd || [], "N"),
+        sStats: reportSeriesStats(m.sfd || [], "V"),
+        mStats: reportSeriesStats(m.bmd || [], "M"),
+        dStats: reportSeriesStats(m.defl || [], "vLocal")
+      }));
+      const memberRows = result.members || [];
+      const supportReactions = (result.reactions || []).filter(r=>r.support!=="Free" || r.hasSpring);
+      const hasModes = (result.eigenModes || []).length > 0;
+      const rs = result.responseSpectrum;
+      return <div className="print-report">
+        <div className="report-page report-summary-page">
+          <div className="report-cover">
+            <div className="report-title">Frames v0.6.6 — Analysis and Design Report</div>
+            <div className="report-subtitle">{reportTitle}{reportSubtitle ? ` — ${reportSubtitle}` : ""} · Units: {units} · Printed {printedAt}</div>
+            <div className="report-note">This PDF report contains the analysis tables, input summary, dynamic tables where applicable, and all member axial/shear/moment/deflection diagrams. Values are taken from the solved analysis result currently shown on screen.</div>
+          </div>
+          <div className="report-title">Analysis Summary Tables</div>
+          <div className="report-subtitle">Reactions, nodal displacements, and member end forces for the selected result case.</div>
+
+          <div className="report-block">
+            <div className="report-h2">Table 1: Reactions</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr>{["Node", "Support", `Rx (${U.force})`, `Ry (${U.force})`, `Mz (${U.moment})`].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{supportReactions.length ? supportReactions.map(r=><tr key={r.label}><td>{r.label}</td><td>{r.supportLabel || r.support}</td><td>{fmt3(r.Rx)}</td><td>{fmt3(r.Ry)}</td><td>{fmt3(r.Mz)}</td></tr>) : <tr><td colSpan="5">No restrained reactions reported.</td></tr>}</tbody></table></div>
+          </div>
+
+          <div className="report-block">
+            <div className="report-h2">Table 2: Nodal Displacements</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr>{["Node", `ux (${U.disp})`, `uy (${U.disp})`, "θz (rad)"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{(result.displacements || []).map(d=><tr key={d.label}><td>{d.label}</td><td>{fmt3(d.ux)}</td><td>{fmt3(d.uy)}</td><td>{fmt3(d.rz)}</td></tr>)}</tbody></table></div>
+          </div>
+
+          <div className="report-block">
+            <div className="report-h2">Table 3: Member End Forces</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr>{["Member", "Release", `N1 (${U.force})`, `V1 (${U.force})`, `M1 (${U.moment})`, `N2 (${U.force})`, `V2 (${U.force})`, `M2 (${U.moment})`].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{(result.memberResults || []).map(m=><tr key={m.name}><td>{m.name}</td><td>{m.release}</td>{(m.qDisplay || []).map((v,j)=><td key={j}>{fmt3(v)}</td>)}</tr>)}</tbody></table></div>
+          </div>
+        </div>
+
+        <div className="report-page">
+          <div className="report-title">Model Input Summary</div>
+          <div className="report-subtitle">Geometry, supports, material properties, releases, and active member loads used for this result case.</div>
+          <div className="report-block">
+            <div className="report-h2">Node Coordinates, Supports, and Nodal Loads</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr>{["Node", `x (${U.dist})`, `y (${U.dist})`, "Support", `kx (${U.force}/${U.disp})`, `ky (${U.force}/${U.disp})`, `kθ (${U.moment}/rad)`, `Fx (${U.force})`, `Fy (${U.force})`, `Mz (${U.moment})`].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{(result.nodes || []).map(n=><tr key={n.label}><td>{n.label}</td><td>{fmt3(+n.x || 0)}</td><td>{fmt3(+n.y || 0)}</td><td>{n.support || "Free"}</td><td>{fmt3(+n.kx || 0)}</td><td>{fmt3(+n.ky || 0)}</td><td>{fmt3(+n.kTheta || 0)}</td><td>{fmt3(+n.fx || 0)}</td><td>{fmt3(+n.fy || 0)}</td><td>{fmt3(+n.mz || 0)}</td></tr>)}</tbody></table></div>
+          </div>
+          <div className="report-block">
+            <div className="report-h2">Member Definitions and Member Loads</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr>{["Member", "Near", "Far", "Release", `E (${U.E})`, `A (${U.area})`, `I (${U.inertia})`, `qxA (${U.load})`, `qxB (${U.load})`, `qyA (${U.load})`, `qyB (${U.load})`, `Px (${U.force})`, `Py (${U.force})`, `a (${U.dist})`].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{memberRows.map(m=><tr key={m.id || m.name}><td>{m.name}</td><td>{m.near}</td><td>{m.far}</td><td>{m.release || "Fix-Fix"}</td><td>{fmt3(+m.E || 0)}</td><td>{fmt3(+m.A || 0)}</td><td>{fmt3(+m.I || 0)}</td><td>{fmt3(+m.qxA || 0)}</td><td>{fmt3(+m.qxB || 0)}</td><td>{fmt3(+m.qyA || 0)}</td><td>{fmt3(+m.qyB || 0)}</td><td>{fmt3(+m.pointPx || 0)}</td><td>{fmt3(+m.pointPy || 0)}</td><td>{fmt3(+m.pointA || 0)}</td></tr>)}</tbody></table></div>
+          </div>
+        </div>
+
+        {hasModes && <div className="report-page">
+          <div className="report-title">Dynamic Mode Shape Results</div>
+          <div className="report-subtitle">Mass-based eigenvalue and mode shape tables shown in the Results section.</div>
+          <div className="report-block">
+            <div className="report-h2">Mode Summary</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr>{["Mode", "Period T (s)", "Frequency (Hz)", "λ = ω²", "Mass % X", "Mass % Y"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{(result.eigenModes || []).map(m=><tr key={m.mode}><td>{m.mode}</td><td>{fmt3(m.period)}</td><td>{fmt3(m.frequency)}</td><td>{fmt3(m.lambda)}</td><td>{fmt2(m.participationX)}</td><td>{fmt2(m.participationY)}</td></tr>)}</tbody></table></div>
+          </div>
+          {(result.eigenModes || []).map(m=><div className="report-block" key={m.mode}>
+            <div className="report-h3">Mode {m.mode} Eigenvector Components</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr><th>Free DOF</th><th>φ</th></tr></thead><tbody>{(m.components || []).map(c=><tr key={c.label}><td>{c.label}</td><td>{fmt3(c.value)}</td></tr>)}</tbody></table></div>
+          </div>)}
+        </div>}
+
+        {rs && <div className="report-page">
+          <div className="report-title">Response Spectrum Results — SRSS</div>
+          <div className="report-subtitle">Direction {rs.settings.direction} · Damping = {fmt2(rs.settings.damping)}% · SRSS base shear = {fmt2(rs.srssBaseShear)}</div>
+          <div className="report-block">
+            <div className="report-h2">Modal Response Summary</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr>{["Mode", "T (s)", "Sa (g)", "Γ", "Eff. Mass", "Mass %", "Base Shear"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{(rs.modalRows || []).map(m=><tr key={m.mode}><td>{m.mode}</td><td>{fmt3(m.period)}</td><td>{fmt3(m.Sa)}</td><td>{fmt3(m.gamma)}</td><td>{fmt3(m.effMass)}</td><td>{fmt2(m.participation)}%</td><td>{fmt2(m.baseShear)}</td></tr>)}</tbody></table></div>
+          </div>
+          <div className="report-block">
+            <div className="report-h2">Mass Source Weights</div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr><th>Node</th><th>Seismic Weight</th></tr></thead><tbody>{(rs.massWeights || []).map(w=><tr key={w.id}><td>{w.node}</td><td>{fmt3(w.weight)}</td></tr>)}</tbody></table></div>
+          </div>
+        </div>}
+
+        {memberSummary.map(({m}, idx)=><div className="report-page report-member-page" key={m.name || idx}>
+          <div className="report-title">Member {m.name} Diagrams</div>
+          <div className="report-subtitle">Near node {m.near} · Far node {m.far} · Length = {fmt3(m.L)} {U.dist}</div>
+          <div className="report-member">
+            <div className="report-h2">Axial Load Diagram</div>
+            <ReportDiagram member={{...m, units}} dataType="N" title={`Axial Load Diagram (${U.force})`} color="#7c3aed" unitLabel={U.force}/>
+          </div>
+          <div className="report-member">
+            <div className="report-h2">Shear Force Diagram</div>
+            <ReportDiagram member={{...m, units}} dataType="V" title={`Shear Force Diagram (${U.force})`} color="#0f766e" unitLabel={U.force}/>
+          </div>
+          <div className="report-member">
+            <div className="report-h2">Bending Moment Diagram</div>
+            <ReportDiagram member={{...m, units}} dataType="M" title={`Bending Moment Diagram (${U.moment})`} color="#c2410c" unitLabel={U.moment}/>
+          </div>
+          <div className="report-member">
+            <div className="report-h2">Deflection Diagram</div>
+            <ReportDiagram member={{...m, units}} dataType="vLocal" title={`Deflection Diagram (${U.disp})`} color="#a16207" unitLabel={U.disp}/>
+          </div>
+        </div>)}
+      </div>;
+    }
+
+
+    // Response spectrum graph removed by request. Spectrum values are edited in the table below.
+    function ResponseSpectrumResults({ result }) {
+      if(!result || !result.isResponseSpectrum || !result.responseSpectrum) return null;
+      const rs=result.responseSpectrum;
+      return <div style={{ ...S.card, border:`1px solid ${CLR.violet}` }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem", flexWrap:"wrap" }}>
+          <div><div style={S.h2}>Response Spectrum Results — SRSS</div><div style={{ fontSize:11, color:CLR.muted }}>Dynamic modes are combined by square-root-sum-of-squares. Sa(T) is read from the user spectrum using log-log interpolation. The generated result case is named <strong style={{ color:CLR.yellow }}>Response Spectrum</strong>.</div></div>
+          <span style={{ marginLeft:"auto", ...S.badge(CLR.violet) }}>Direction {rs.settings.direction}</span><span style={S.badge(CLR.teal)}>ζ = {fmt2(rs.settings.damping)}%</span><span style={S.badge(CLR.yellow)}>SRSS V = {fmt2(rs.srssBaseShear)}</span>
+        </div>
+        <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Mode","T (s)","Sa (g)","Γ","Eff. Mass","Mass %","Base Shear"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{(rs.modalRows||[]).map((m,i)=><tr key={m.mode} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={{ ...S.td, color:CLR.yellow, fontWeight:700 }}>{m.mode}</td><td style={S.td}>{fmt3(m.period)}</td><td style={S.td}>{fmt3(m.Sa)}</td><td style={S.td}>{fmt3(m.gamma)}</td><td style={S.td}>{fmt3(m.effMass)}</td><td style={S.td}>{fmt2(m.participation)}%</td><td style={S.td}>{fmt2(m.baseShear)}</td></tr>)}</tbody></table></div>
+        <div style={{ marginTop:"1rem", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+          <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr><th style={S.th}>Node</th><th style={S.th}>Seismic Weight</th></tr></thead><tbody>{(rs.massWeights||[]).map((w,i)=><tr key={w.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{w.node}</td><td style={S.td}>{fmt3(w.weight)}</td></tr>)}</tbody></table></div>
+          <div style={{ fontSize:11, color:CLR.muted, lineHeight:1.7, background:CLR.bg, border:`1px solid ${CLR.border}`, borderRadius:6, padding:"1rem" }}><strong style={{ color:CLR.teal }}>Mass source:</strong> seismic weight is assembled from the selected load case vertical nodal loads and local member transverse loads. Translational mass is W/g at the free translational DOFs. Massless rotational DOFs are statically condensed for the modal calculation.</div>
+        </div>
+      </div>;
+    }
+
+    function InputsView({ nodes,setNodes,members,setMembers,loadCases,setLoadCases,loadCombinations,setLoadCombinations,activeLoadCaseId,setActiveLoadCaseId,massSource,setMassSource,rsSettings,setRsSettings,units,setUnits,onRun }) {
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+      const activeLC = loadCases.find(lc => lc.id === activeLoadCaseId) || loadCases[0] || DEFAULT_LOAD_CASES[0];
+      const preview = mergeLoadCaseLoads(nodes, members, activeLC);
+      const updN=(id,f,v)=>setNodes(p=>p.map(n=>n.id===id?{...n,[f]:v}:n));
+      const updM=(id,f,v)=>setMembers(p=>p.map(m=>m.id===id?{...m,[f]:v}:m));
+      const updLC=(id,f,v)=>setLoadCases(p=>p.map(lc=>lc.id===id?{...lc,[f]:v}:lc));
+      const updNLoad=(nodeId,f,v)=>setLoadCases(p=>p.map(lc=>lc.id===activeLC.id?{...lc,nodalLoads:{...(lc.nodalLoads||{}),[String(nodeId)]:{...nodeLoadFor(lc,nodeId),[f]:v}}}:lc));
+      const updMLoad=(memberId,f,v)=>setLoadCases(p=>p.map(lc=>lc.id===activeLC.id?{...lc,memberLoads:{...(lc.memberLoads||{}),[String(memberId)]:{...memberLoadFor(lc,memberId),[f]:v}}}:lc));
+      const addNode=()=>setNodes(p=>[...p,{ id:(p.reduce((m,n)=>Math.max(m,n.id||0),0)+1), label:String(p.length+1), x:0, y:0, support:"Free", kx:0, ky:0, kTheta:0, fx:0, fy:0, mz:0 }]);
+      const delNode=id=>setNodes(p=>p.filter(n=>n.id!==id));
+      const addMember=()=>setMembers(p=>[...p,{ id:(p.reduce((m,n)=>Math.max(m,n.id||0),0)+1), name:String(p.length+1), near:"", far:"", E:29000, A:1, I:1, release:"Fix-Fix", qxA:0, qxB:0, qyA:0, qyB:0, pointPx:0, pointPy:0, pointA:0 }]);
+      const delMember=id=>setMembers(p=>p.filter(m=>m.id!==id));
+      const addLoadCase=()=>setLoadCases(p=>{ const id=p.reduce((m,lc)=>Math.max(m,lc.id||0),0)+1; setActiveLoadCaseId(id); return [...p,{ id, name:`LC${p.length+1}`, type:"Other", factor:1.0, nodalLoads:{}, memberLoads:{} }]; });
+      const duplicateLoadCase=()=>setLoadCases(p=>{ const id=p.reduce((m,lc)=>Math.max(m,lc.id||0),0)+1; setActiveLoadCaseId(id); return [...p,{ ...JSON.parse(JSON.stringify(activeLC)), id, name:`${activeLC.name} Copy` }]; });
+      const delLoadCase=id=>setLoadCases(p=>{ const next=p.filter(lc=>lc.id!==id); if(activeLoadCaseId===id && next[0]) setActiveLoadCaseId(next[0].id); return next.length?next:p; });
+      const addCombo=()=>setLoadCombinations(p=>{ const id=p.reduce((m,c)=>Math.max(m,c.id||0),0)+1; return [...p,{ id, name:`Combo ${p.length+1}`, type:"ULS", enabled:true, terms:[{id:Date.now(), loadCaseId:(loadCases[0]||{}).id||1, factor:1.0}] }]; });
+      const duplicateCombo=combo=>setLoadCombinations(p=>{ const id=p.reduce((m,c)=>Math.max(m,c.id||0),0)+1; return [...p,{ ...JSON.parse(JSON.stringify(combo)), id, name:`${combo.name} Copy` }]; });
+      const delCombo=id=>setLoadCombinations(p=>p.filter(c=>c.id!==id));
+      const updCombo=(id,f,v)=>setLoadCombinations(p=>p.map(c=>c.id===id?{...c,[f]:v}:c));
+      const addComboTerm=comboId=>setLoadCombinations(p=>p.map(c=>c.id===comboId?{...c,terms:[...(c.terms||[]),{id:Date.now()+Math.random(), loadCaseId:(loadCases[0]||{}).id||1, factor:1.0}]}:c));
+      const delComboTerm=(comboId,termId)=>setLoadCombinations(p=>p.map(c=>c.id===comboId?{...c,terms:(c.terms||[]).filter(t=>t.id!==termId)}:c));
+      const updComboTerm=(comboId,termId,f,v)=>setLoadCombinations(p=>p.map(c=>c.id===comboId?{...c,terms:(c.terms||[]).map(t=>t.id===termId?{...t,[f]:v}:t)}:c));
+      const resetDefault=()=>{ setNodes(DEFAULT_NODES.map(n=>({...n, fx:0, fy:0, mz:0}))); setMembers(DEFAULT_MEMBERS.map(m=>({...m, qxA:0, qxB:0, qyA:0, qyB:0, pointPx:0, pointPy:0, pointA:0}))); setLoadCases(DEFAULT_LOAD_CASES.map(lc=>JSON.parse(JSON.stringify(lc)))); setLoadCombinations(DEFAULT_LOAD_COMBINATIONS.map(c=>JSON.parse(JSON.stringify(c)))); setActiveLoadCaseId(DEFAULT_LOAD_CASES[0].id); setMassSource(JSON.parse(JSON.stringify(DEFAULT_MASS_SOURCE))); setRsSettings(JSON.parse(JSON.stringify(DEFAULT_RS_SETTINGS))); };
+      const [newSpectrumPoint, setNewSpectrumPoint] = useState({ T:0.2, Sa:1.05 });
+      const [spectrumText, setSpectrumText] = useState("0.2, 1.05\n0.5, 0.838\n1.0, 0.487\n2.0, 0.295");
+      const updRS=(f,v)=>setRsSettings(p=>({...p,[f]:v}));
+      const updSpectrum=(id,f,v)=>setRsSettings(p=>({...p,spectrum:(p.spectrum||[]).map(row=>row.id===id?{...row,[f]:v}:row)}));
+      const sortSpectrum = pts => [...(pts||[])].map((pt,i)=>({ id:pt.id || Date.now()+i, T:+pt.T || 0, Sa:+pt.Sa || 0 })).sort((a,b)=>a.T-b.T);
+      const addSpectrumPoint=()=>setRsSettings(p=>({...p,spectrum:sortSpectrum([...(p.spectrum||[]),{id:Date.now()+Math.random(),T:+newSpectrumPoint.T||0,Sa:+newSpectrumPoint.Sa||0}])}));
+      const addBlankSpectrumRow=()=>setRsSettings(p=>({...p,spectrum:[...(p.spectrum||[]),{id:Date.now()+Math.random(),T:1,Sa:0.1}]}));
+      const sortSpectrumPoints=()=>setRsSettings(p=>({...p,spectrum:sortSpectrum(p.spectrum||[])}));
+      const resetSpectrumPoints=()=>setRsSettings(p=>({...p,spectrum:DEFAULT_RESPONSE_SPECTRUM.map(pt=>({...pt}))}));
+      const clearSpectrumPoints=()=>setRsSettings(p=>({...p,spectrum:[]}));
+      const parseSpectrumText=()=>{
+        const rows = String(spectrumText || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const pts = [];
+        rows.forEach((line, i) => {
+          const cleaned = line.replace(/[;\t]+/g, ",").replace(/\s*,\s*/g, ",");
+          const parts = cleaned.includes(",") ? cleaned.split(",") : cleaned.split(/\s+/);
+          const nums = parts.map(x => Number(String(x).replace(/[^0-9eE+\-.]/g, ""))).filter(Number.isFinite);
+          if (nums.length >= 2 && nums[0] > 0 && nums[1] > 0) pts.push({ id:Date.now()+i+Math.random(), T:nums[0], Sa:nums[1] });
+        });
+        if (pts.length) setRsSettings(p=>({...p,spectrum:sortSpectrum(pts)}));
+      };
+      const appendSpectrumText=()=>{
+        const rows = String(spectrumText || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const pts = [];
+        rows.forEach((line, i) => {
+          const cleaned = line.replace(/[;\t]+/g, ",").replace(/\s*,\s*/g, ",");
+          const parts = cleaned.includes(",") ? cleaned.split(",") : cleaned.split(/\s+/);
+          const nums = parts.map(x => Number(String(x).replace(/[^0-9eE+\-.]/g, ""))).filter(Number.isFinite);
+          if (nums.length >= 2 && nums[0] > 0 && nums[1] > 0) pts.push({ id:Date.now()+i+Math.random(), T:nums[0], Sa:nums[1] });
+        });
+        if (pts.length) setRsSettings(p=>({...p,spectrum:sortSpectrum([...(p.spectrum||[]), ...pts])}));
+      };
+      const delSpectrumPoint=id=>setRsSettings(p=>({...p,spectrum:(p.spectrum||[]).filter(row=>row.id!==id)}));
+      const duplicateSpectrumPoint=id=>setRsSettings(p=>{ const pts=p.spectrum||[]; const idx=pts.findIndex(row=>row.id===id); if(idx<0) return p; const row=pts[idx]; const copy={...row,id:Date.now()+Math.random()}; return {...p,spectrum:[...pts.slice(0,idx+1),copy,...pts.slice(idx+1)]}; });
+      const insertSpectrumPointBelow=id=>setRsSettings(p=>{ const pts=p.spectrum||[]; const idx=pts.findIndex(row=>row.id===id); const base=idx>=0?pts[idx]:null; const next=idx>=0?pts[idx+1]:null; const T=base&&next?(+base.T + +next.T)/2:base?(+base.T||0)+0.1:1; const Sa=base&&next?(+base.Sa + +next.Sa)/2:base?(+base.Sa||0):0.1; const row={id:Date.now()+Math.random(),T:+T||0,Sa:+Sa||0}; return {...p,spectrum:idx>=0?[...pts.slice(0,idx+1),row,...pts.slice(idx+1)]:[...pts,row]}; });
+      const updMassItem=(id,f,v)=>setMassSource(p=>({...p,items:(p.items||[]).map(it=>it.id===id?{...it,[f]:v}:it)}));
+      const addMassItem=()=>setMassSource(p=>({...p,items:[...(p.items||[]),{id:Date.now(),loadCaseId:(loadCases[0]||{}).id||1,factor:1,includeNodal:true,includeMember:true}]}));
+      const delMassItem=id=>setMassSource(p=>({...p,items:(p.items||[]).filter(it=>it.id!==id)}));
+      return <div>
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:"1.5rem", flexWrap:"wrap" }}>
+          <div><div style={{ fontSize:22, fontWeight:800, color:CLR.text, letterSpacing:"-0.02em" }}>Frame Inputs</div><div style={{ color:CLR.muted, fontSize:12, marginTop:2 }}>Define geometry once, then assign nodal and member loads to separate load cases.</div></div>
+          <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}><span style={{ color:CLR.muted, fontSize:12 }}>Units:</span><select style={{ ...S.select, width:"auto", minWidth:100, padding:"6px 10px" }} value={units} onChange={e=>setUnits(e.target.value)}>{Object.keys(UNIT_SETS).map(k=><option key={k} value={k}>{k}</option>)}</select><button style={S.btn("ghost")} onClick={resetDefault}>↺ Reset Example</button><button style={{ ...S.btn("primary"), padding:"8px 24px", fontSize:13 }} onClick={onRun}>▶ Analyze All Load Cases</button></div>
+        </div>
+
+        <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div><div style={S.h2}>Load Case Manager</div><div style={{ fontSize:11, color:CLR.muted }}>Select the active load case, then enter the nodal and member loads below. The analysis runs every load case separately.</div></div><button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addLoadCase}>+ Add Case</button><button style={{ ...S.btn("ghost"), padding:"4px 12px", fontSize:11 }} onClick={duplicateLoadCase}>⧉ Duplicate Active</button></div>
+          <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Active","Case","Type","Factor","Status","—"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{loadCases.map((lc,i)=><tr key={lc.id} style={{ background:i%2===0?"transparent":"#ffffff05", outline:activeLC.id===lc.id?`1px solid ${CLR.accent}`:undefined }}><td style={S.td}><input type="radio" checked={activeLC.id===lc.id} onChange={()=>setActiveLoadCaseId(lc.id)}/></td><td style={S.td}><input style={S.input} value={lc.name} onChange={e=>updLC(lc.id,"name",e.target.value)}/></td><td style={S.td}><select style={S.select} value={lc.type||"Other"} onChange={e=>updLC(lc.id,"type",e.target.value)}>{["Dead","Live","Snow","Wind","Seismic","Other"].map(t=><option key={t}>{t}</option>)}</select></td><td style={S.td}><input type="number" step="0.05" style={S.input} value={lc.factor} onChange={e=>updLC(lc.id,"factor",+e.target.value)}/></td><td style={S.td}><span style={S.badge(activeLC.id===lc.id?CLR.green:CLR.muted)}>{activeLC.id===lc.id?"Editing":"Stored"}</span></td><td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} disabled={loadCases.length<=1} onClick={()=>delLoadCase(lc.id)}>✕</button></td></tr>)}</tbody></table></div>
+          <div style={{ padding:"0.6rem 1rem", fontSize:11, color:CLR.muted, borderTop:`1px solid ${CLR.border}` }}><strong style={{ color:CLR.yellow }}>Active case:</strong> {activeLC.name}. Enter loads as service loads; the factor column multiplies that case during analysis.</div>
+        </div>
+
+        <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div><div style={S.h2}>Load Combination Manager</div><div style={{ fontSize:11, color:CLR.muted }}>Create linear combinations from regular load cases. The generated Response Spectrum case is intentionally not available here.</div></div><button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addCombo}>+ Add Combination</button></div>
+          <div style={{ padding:"1rem" }}>
+            {(loadCombinations||[]).map((combo,ci)=><div key={combo.id} style={{ background:ci%2===0?CLR.bg:"#ffffff05", border:`1px solid ${CLR.border}`, borderRadius:8, padding:"0.8rem", marginBottom:"0.85rem" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"48px 1.3fr 0.6fr auto auto", gap:8, alignItems:"center", marginBottom:8 }}>
+                <label style={{ display:"flex", alignItems:"center", justifyContent:"center", color:CLR.muted, fontSize:11 }}><input type="checkbox" checked={combo.enabled!==false} onChange={e=>updCombo(combo.id,"enabled",e.target.checked)}/></label>
+                <input style={S.input} value={combo.name} onChange={e=>updCombo(combo.id,"name",e.target.value)}/>
+                <select style={S.select} value={combo.type||"ULS"} onChange={e=>updCombo(combo.id,"type",e.target.value)}>{["ULS","SLS","Strength","Service","Other"].map(t=><option key={t}>{t}</option>)}</select>
+                <button style={{ ...S.btn("ghost"), padding:"4px 10px", fontSize:10 }} onClick={()=>duplicateCombo(combo)}>⧉ Duplicate</button>
+                <button style={{ ...S.btn("danger"), padding:"4px 10px", fontSize:10 }} onClick={()=>delCombo(combo.id)}>✕</button>
+              </div>
+              <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Load Case","Factor","—"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{(combo.terms||[]).map((term,ti)=><tr key={term.id} style={{ background:ti%2===0?"transparent":"#ffffff05" }}><td style={S.td}><select style={S.select} value={term.loadCaseId} onChange={e=>updComboTerm(combo.id,term.id,"loadCaseId",+e.target.value)}>{loadCases.filter(lc=>lc.name!=="Response Spectrum").map(lc=><option key={lc.id} value={lc.id}>{lc.name} · {lc.type}</option>)}</select></td><td style={S.td}><input type="number" step="0.05" style={S.input} value={term.factor} onChange={e=>updComboTerm(combo.id,term.id,"factor",+e.target.value)}/></td><td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delComboTerm(combo.id,term.id)}>✕</button></td></tr>)}</tbody></table></div>
+              <button style={{ ...S.btn("ghost"), marginTop:8, padding:"4px 12px", fontSize:10 }} onClick={()=>addComboTerm(combo.id)}>+ Add Load Case Term</button>
+            </div>)}
+            {(!loadCombinations || loadCombinations.length===0) && <div style={{ color:CLR.muted, fontSize:12 }}>No load combinations defined.</div>}
+          </div>
+        </div>
+
+        <div style={{ ...S.card, padding:0, overflow:"hidden", border:`1px solid ${rsSettings.enabled ? CLR.violet : CLR.border}` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}`, flexWrap:"wrap" }}>
+            <div><div style={S.h2}>Response Spectrum Analysis</div><div style={{ fontSize:11, color:CLR.muted }}>Switch this on to generate an automatic <strong style={{ color:CLR.yellow }}>Response Spectrum</strong> load case. The default spectrum is the uploaded NBCC hazard spectrum.</div></div>
+            <label style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8, color:CLR.text, fontSize:12 }}><input type="checkbox" checked={!!rsSettings.enabled} onChange={e=>updRS("enabled",e.target.checked)}/> Show / run response spectrum</label>
+          </div>
+          {rsSettings.enabled && <div style={{ padding:"1rem" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"0.8fr 1.2fr", gap:"1.2rem", alignItems:"start" }}>
+              <div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:"1rem" }}>
+                  <label style={{ fontSize:11, color:CLR.muted }}>Direction<select style={{ ...S.select, marginTop:4 }} value={rsSettings.direction} onChange={e=>updRS("direction",e.target.value)}><option value="X">Global X</option><option value="Y">Global Y</option></select></label>
+                  <label style={{ fontSize:11, color:CLR.muted }}>Damping ζ (%)<input type="number" step="0.5" style={{ ...S.input, marginTop:4 }} value={rsSettings.damping} onChange={e=>updRS("damping",+e.target.value)}/></label>
+                  <label style={{ fontSize:11, color:CLR.muted }}>Modes to combine<input type="number" step="1" min="1" style={{ ...S.input, marginTop:4 }} value={rsSettings.modesToUse} onChange={e=>updRS("modesToUse",+e.target.value)}/><span style={{ display:"block", marginTop:3, color:CLR.muted, fontSize:9 }}>Default: lesser of 50 modes or all available modes.</span></label>
+                  <label style={{ fontSize:11, color:CLR.muted }}>Scale factor<input type="number" step="0.05" style={{ ...S.input, marginTop:4 }} value={rsSettings.scaleFactor} onChange={e=>updRS("scaleFactor",+e.target.value)}/></label>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", marginBottom:6 }}><div style={{ ...S.h2, marginBottom:0 }}>Mass Source</div><button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"3px 10px", fontSize:10 }} onClick={addMassItem}>+ Source</button></div>
+                <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Load Case","Multiplier","Nodal","Member","—"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{(massSource.items||[]).map((it,i)=><tr key={it.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={S.td}><select style={S.select} value={it.loadCaseId} onChange={e=>updMassItem(it.id,"loadCaseId",+e.target.value)}>{loadCases.map(lc=><option key={lc.id} value={lc.id}>{lc.name}</option>)}</select></td><td style={S.td}><input type="number" step="0.05" style={S.input} value={it.factor} onChange={e=>updMassItem(it.id,"factor",+e.target.value)}/></td><td style={S.td}><input type="checkbox" checked={it.includeNodal!==false} onChange={e=>updMassItem(it.id,"includeNodal",e.target.checked)}/></td><td style={S.td}><input type="checkbox" checked={it.includeMember!==false} onChange={e=>updMassItem(it.id,"includeMember",e.target.checked)}/></td><td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delMassItem(it.id)}>✕</button></td></tr>)}</tbody></table></div>
+              </div>
+              <div>
+                <div style={{ display:"flex", alignItems:"center", marginBottom:6, gap:8, flexWrap:"wrap" }}>
+                  <div style={{ ...S.h2, marginBottom:0 }}>Spectrum Input</div>
+                  <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"3px 10px", fontSize:10 }} onClick={addBlankSpectrumRow}>+ Blank Row</button>
+                  <button style={{ ...S.btn("ghost"), padding:"3px 10px", fontSize:10 }} onClick={sortSpectrumPoints}>Sort by T</button>
+                  <button style={{ ...S.btn("ghost"), padding:"3px 10px", fontSize:10 }} onClick={resetSpectrumPoints}>Load NBCC Example</button>
+                  <button style={{ ...S.btn("danger"), padding:"3px 10px", fontSize:10 }} onClick={clearSpectrumPoints}>Clear</button>
+                </div>
+                <div style={{ background:CLR.bg, border:`1px solid ${CLR.border}`, borderRadius:6, padding:"0.75rem", marginBottom:"0.75rem" }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:10 }}>
+                    <label style={{ fontSize:11, color:CLR.muted }}>New period T (s)<input type="number" step="0.01" style={{ ...S.input, marginTop:4 }} value={newSpectrumPoint.T} onChange={e=>setNewSpectrumPoint(p=>({...p,T:+e.target.value}))}/></label>
+                    <label style={{ fontSize:11, color:CLR.muted }}>New spectral acceleration Sa (g)<input type="number" step="0.001" style={{ ...S.input, marginTop:4 }} value={newSpectrumPoint.Sa} onChange={e=>setNewSpectrumPoint(p=>({...p,Sa:+e.target.value}))}/></label>
+                    <button style={{ ...S.btn("primary"), padding:"7px 12px", whiteSpace:"nowrap" }} onClick={addSpectrumPoint}>Insert Point</button>
+                  </div>
+                  <label style={{ display:"block", fontSize:11, color:CLR.muted }}>Paste / bulk import response spectrum points</label>
+                  <textarea style={{ ...S.input, textAlign:"left", minHeight:82, marginTop:4, resize:"vertical", lineHeight:1.45 }} value={spectrumText} onChange={e=>setSpectrumText(e.target.value)} placeholder={'T, Sa\n0.2, 1.05\n0.5, 0.838\n1.0, 0.487'} />
+                  <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+                    <button style={{ ...S.btn("primary"), padding:"6px 12px" }} onClick={parseSpectrumText}>Replace Spectrum with Pasted Points</button>
+                    <button style={{ ...S.btn("ghost"), padding:"6px 12px" }} onClick={appendSpectrumText}>Append Pasted Points</button>
+                  </div>
+                  <div style={{ marginTop:8, fontSize:10, color:CLR.muted }}>Use any two-column response spectrum format: comma-separated, tab-separated, space-separated, or semicolon-separated. Column 1 = period T in seconds. Column 2 = spectral acceleration Sa in g. The program sorts points by period and uses log-log interpolation whenever it looks up Sa(T).</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ background:CLR.bg, border:`1px solid ${CLR.border}`, borderRadius:6, overflow:"hidden", marginTop:"1rem" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0.75rem 0.9rem", borderBottom:`1px solid ${CLR.border}`, flexWrap:"wrap" }}>
+                <div style={{ fontSize:13, fontWeight:800, color:CLR.accent, letterSpacing:"0.08em", textTransform:"uppercase" }}>All Inputted Response Spectrum Values</div>
+                <span style={{ fontSize:10, color:CLR.muted }}>fully visible editable table</span>
+                <span style={{ marginLeft:"auto", fontSize:10, color:CLR.muted }}>{(rsSettings.spectrum||[]).length} points</span>
+              </div>
+              <div style={{ overflowX:"auto", maxHeight:"none" }}>
+                <table style={{ ...S.table, minWidth:760 }}>
+                  <thead><tr><th style={S.th}>Point</th><th style={S.th}>T (s)</th><th style={S.th}>Sa (g)</th><th style={S.th}>Actions</th></tr></thead>
+                  <tbody>{(rsSettings.spectrum||[]).length ? (rsSettings.spectrum||[]).map((pt,i)=><tr key={pt.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={{ ...S.td, color:CLR.violet, fontWeight:700 }}>{i+1}</td><td style={S.td}><input type="number" step="0.001" min="0" style={S.input} value={pt.T} onChange={e=>updSpectrum(pt.id,"T",+e.target.value)} title="Edit response spectrum period T in seconds"/></td><td style={S.td}><input type="number" step="0.0001" min="0" style={S.input} value={pt.Sa} onChange={e=>updSpectrum(pt.id,"Sa",+e.target.value)} title="Edit spectral acceleration Sa in g"/></td><td style={S.td}><div style={{ display:"flex", gap:4, justifyContent:"center", flexWrap:"wrap" }}><button title="Insert interpolated point below" style={{ ...S.btn("ghost"), padding:"3px 7px", fontSize:10 }} onClick={()=>insertSpectrumPointBelow(pt.id)}>+ Below</button><button title="Duplicate this point" style={{ ...S.btn("ghost"), padding:"3px 7px", fontSize:10 }} onClick={()=>duplicateSpectrumPoint(pt.id)}>⧉</button><button title="Delete this response spectrum point" style={{ ...S.btn("danger"), padding:"3px 7px", fontSize:10 }} onClick={()=>delSpectrumPoint(pt.id)}>✕</button></div></td></tr>) : <tr><td style={{...S.td,color:CLR.muted}} colSpan="4">No spectrum points defined. Add a blank row, insert a point, paste/import points, or load the NBCC example.</td></tr>}</tbody>
+                </table>
+              </div>
+              <div style={{ padding:"0.65rem 0.9rem", borderTop:`1px solid ${CLR.border}`, color:CLR.muted, fontSize:10 }}>This table displays every response spectrum point currently inputted by the user. It is intentionally placed full-width below Mass Source and Spectrum Input. Edit any T or Sa cell directly. Use Sort by T after editing periods. Only positive T and Sa values are used for log-log interpolation.</div>
+            </div>
+            <div style={{ marginTop:"0.8rem", fontSize:11, color:CLR.muted }}>Spectrum points are fully user-defined. Use the point editor, paste/import any two-column spectrum, clear the table, or load the NBCC example. Sa(T) values between points are evaluated with log-log interpolation.</div>
+          </div>}
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1.45fr", gap:"1.5rem" }}>
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div style={S.h2}>Table 1A: Nodes</div><button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addNode}>+ Add Node</button></div>
+            <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Node",`x (${U.dist})`,`y (${U.dist})`,"—"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{nodes.map((n,i)=><tr key={n.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={S.td}><input style={S.input} value={n.label} onChange={e=>updN(n.id,"label",e.target.value)}/></td><td style={S.td}><input type="number" style={S.input} value={n.x} onChange={e=>updN(n.id,"x",+e.target.value)}/></td><td style={S.td}><input type="number" style={S.input} value={n.y} onChange={e=>updN(n.id,"y",+e.target.value)}/></td><td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delNode(n.id)}>✕</button></td></tr>)}</tbody></table></div>
+          </div>
+
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div><div style={S.h2}>Table 1B: Supports & Nodal Loads</div><div style={{ fontSize:11, color:CLR.muted }}>Loads shown for active case: <strong style={{ color:CLR.yellow }}>{activeLC.name}</strong></div></div></div>
+            <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Node","Support",`kx (${U.force}/${U.disp})`,`ky (${U.force}/${U.disp})`,`kθ (${U.moment}/rad)`,`Fx (${U.force})`,`Fy (${U.force})`,`Mz (${U.moment})`].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{nodes.map((n,i)=>{ const L=nodeLoadFor(activeLC,n.id); return <tr key={n.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={{...S.td,color:CLR.accent,fontWeight:700}}>{n.label}</td><td style={S.td}><select style={{...S.select,minWidth:120}} value={n.support} onChange={e=>updN(n.id,"support",e.target.value)}>{SUPPORTS.map(s=><option key={s}>{s}</option>)}</select></td><td style={S.td}><input type="number" min="0" step="0.001" style={S.input} value={n.kx || 0} onChange={e=>updN(n.id,"kx",+e.target.value)} title="Horizontal translational spring stiffness in force/displacement"/></td><td style={S.td}><input type="number" min="0" step="0.001" style={S.input} value={n.ky || 0} onChange={e=>updN(n.id,"ky",+e.target.value)} title="Vertical translational spring stiffness in force/displacement"/></td><td style={S.td}><input type="number" min="0" step="0.001" style={S.input} value={n.kTheta || 0} onChange={e=>updN(n.id,"kTheta",+e.target.value)} title="Rotational spring stiffness in moment/radian"/></td><td style={S.td}><input type="number" style={S.input} value={L.fx} onChange={e=>updNLoad(n.id,"fx",+e.target.value)}/></td><td style={S.td}><input type="number" style={S.input} value={L.fy} onChange={e=>updNLoad(n.id,"fy",+e.target.value)}/></td><td style={S.td}><input type="number" style={S.input} value={L.mz} onChange={e=>updNLoad(n.id,"mz",+e.target.value)}/></td></tr>})}</tbody></table></div>
+            <div style={{ padding:"0.6rem 1rem", fontSize:11, color:CLR.muted, borderTop:`1px solid ${CLR.border}` }}><strong style={{ color:CLR.teal }}>Fixed</strong> = ux, uy, θ restrained · <strong style={{ color:CLR.yellow }}>Pinned</strong> = ux, uy restrained · rollers restrain one translation only · spring values add elastic restraint without fully fixing a DOF · springs are drawn on the diagram in yellow and tagged as <strong style={{ color:CLR.yellow }}>kx</strong>, <strong style={{ color:CLR.yellow }}>ky</strong>, and <strong style={{ color:CLR.yellow }}>kθ</strong>.</div>
+          </div>
+        </div>
+
+        <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div><div style={S.h2}>Table 3: Members and Local-Axis Loads</div><div style={{ fontSize:11, color:CLR.muted }}>Geometry/properties are shared. Local-axis loads below belong to active case <strong style={{ color:CLR.yellow }}>{activeLC.name}</strong>.</div></div><button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 12px", fontSize:11 }} onClick={addMember}>+ Add Member</button></div>
+          <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Member","Near","Far","Release",`E (${U.E})`,`A (${U.area})`,`I (${U.inertia})`,`qxA (${U.load})`,`qxB (${U.load})`,`qyA (${U.load})`,`qyB (${U.load})`,`Px (${U.force})`,`Py (${U.force})`,`a from near (${U.dist})`,"—"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{members.map((m,i)=>{ const L=memberLoadFor(activeLC,m.id); return <tr key={m.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}>{["name","near","far"].map(f=><td style={S.td} key={f}><input style={S.input} value={m[f]} onChange={e=>updM(m.id,f,e.target.value)}/></td>)}<td style={S.td}><select style={{ ...S.select, minWidth:90 }} value={m.release || "Fix-Fix"} onChange={e=>updM(m.id,"release",e.target.value)}>{MEMBER_RELEASES.map(r=><option key={r}>{r}</option>)}</select></td>{["E","A","I"].map(f=><td style={S.td} key={f}><input type="number" style={S.input} value={m[f]} onChange={e=>updM(m.id,f,+e.target.value)}/></td>)}{["qxA","qxB","qyA","qyB","pointPx","pointPy","pointA"].map(f=><td style={S.td} key={f}><input type="number" style={S.input} value={L[f]} onChange={e=>updMLoad(m.id,f,+e.target.value)}/></td>)}<td style={S.td}><button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }} onClick={()=>delMember(m.id)}>✕</button></td></tr>})}</tbody></table></div>
+        </div>
+        <div style={{ ...S.card }}><div style={S.h2}>Figure 1: Frame Preview — Active Load Case</div><FrameDiagram nodes={preview.nodes} members={preview.members} units={units}/></div>
+        <div style={{ ...S.card, background:CLR.surface, fontSize:11, color:CLR.muted }}><strong style={{ color:CLR.yellow }}>Notes:</strong> Fixed-end forces are generated internally from the active local-axis member loads. Use load cases to separate dead, live, wind, seismic, construction, or service-condition loading.</div>
+      </div>;
+    }
+
+    function ResultsView({ result, units }) {
+      const [activeCaseId, setActiveCaseId] = useState(null);
+      if (!result) return <ResultsCore result={result} units={units}/>;
+      if (!result.isLoadCaseBundle) return <ResultsCore result={result} units={units}/>;
+      const cases = result.cases || [];
+      if (!cases.length) return <div style={{...S.card,border:`1px solid ${CLR.red}`,color:CLR.red}}>No load cases are defined.</div>;
+      const selected = cases.find(c => c.loadCase.id === activeCaseId) || cases[0];
+      const lc = selected.loadCase;
+      return <div>
+        <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}`, flexWrap:"wrap" }}>
+            <div><div style={S.h2}>Load Case / Combination Results</div><div style={{ fontSize:11, color:CLR.muted }}>Load cases are solved independently. Load combinations are linear combinations of regular load cases; the Response Spectrum case is excluded from combination input.</div></div>
+            <span style={{ color:CLR.muted, fontSize:12, marginLeft:"auto" }}>Viewing:</span>
+            <select style={{ ...S.select, width:220 }} value={lc.id} onChange={e=>setActiveCaseId(+e.target.value)}>{cases.map(c=><option key={c.loadCase.id} value={c.loadCase.id}>{c.loadCase.name} · {c.loadCase.type}</option>)}</select>
+          </div>
+          <div style={{ overflowX:"auto" }}><table style={S.table}><thead><tr>{["Case","Type","Factor","Status","Max |ux|","Max |uy|"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{cases.map((c,i)=>{ const r=c.result; const maxUx=r && !r.error ? Math.max(...(r.displacements||[]).map(d=>Math.abs(d.ux)),0) : NaN; const maxUy=r && !r.error ? Math.max(...(r.displacements||[]).map(d=>Math.abs(d.uy)),0) : NaN; return <tr key={c.loadCase.id} onClick={()=>setActiveCaseId(c.loadCase.id)} style={{ background:i%2===0?"transparent":"#ffffff05", cursor:"pointer", outline:lc.id===c.loadCase.id?`1px solid ${CLR.accent}`:undefined }}><td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{c.loadCase.name}</td><td style={S.td}>{c.loadCase.type}</td><td style={S.td}>{fmt3(c.loadCase.factor)}</td><td style={S.td}><span style={S.badge(r && !r.error ? CLR.green : CLR.red)}>{r && !r.error ? "Solved" : "Error"}</span></td><td style={S.td}>{Number.isFinite(maxUx)?fmt3(maxUx):"—"}</td><td style={S.td}>{Number.isFinite(maxUy)?fmt3(maxUy):"—"}</td></tr>})}</tbody></table></div>
+        </div>
+        <div style={{ fontSize:12, color:CLR.muted, margin:"-0.7rem 0 1rem 0" }}>Showing results for <strong style={{ color:CLR.yellow }}>{lc.name}</strong> ({lc.type}){lc.isCombination ? ": linear load-combination results" : `, factor = ${fmt3(lc.factor)}`}. {selected.result && selected.result.loadCombination && <span> Terms: {selected.result.loadCombination.terms.map(t=>`${fmt3(t.factor)}×${t.loadCase.name}`).join(" + ")}</span>}</div>
+        <ResultsCore result={selected.result} units={units} reportTitle={lc.name} reportSubtitle={lc.type}/>
+      </div>;
+    }
+
+    function ResultsCore({ result, units, reportTitle="Analysis Results", reportSubtitle="" }) {
+      const U = UNIT_SETS[units] || UNIT_SETS["kip/ft"];
+      const [activeMemberIndex, setActiveMemberIndex] = useState(0);
+      const [overlayMode, setOverlayMode] = useState("none");
+      const [overlayScale, setOverlayScale] = useState(1);
+      const [memberDiagramType, setMemberDiagramType] = useState("V");
+      const [activeModeIndex, setActiveModeIndex] = useState(0);
+      const [showRSResults, setShowRSResults] = useState(true);
+      if (!result) return <div style={{ textAlign:"center", padding:"4rem", color:CLR.muted }}><div style={{ fontSize:48, marginBottom:16 }}>🏗️</div><div style={{ fontSize:16, fontWeight:700, color:CLR.text }}>No results yet</div><div style={{ fontSize:13, marginTop:8 }}>Go to Inputs and press Analyze.</div></div>;
+      if (result.error) return <div style={{...S.card,border:`1px solid ${CLR.red}`,color:CLR.red}}>{result.error}</div>;
+      const activeMember = result.memberResults[Math.min(activeMemberIndex, result.memberResults.length-1)] || result.memberResults[0];
+      const activeMode = result.eigenModes ? (result.eigenModes[Math.min(activeModeIndex, result.eigenModes.length-1)] || result.eigenModes[0]) : null;
+      return <div>
+        <AnalysisPrintReport result={result} units={units} reportTitle={reportTitle} reportSubtitle={reportSubtitle}/>
+        <div style={{ ...S.card, border:`1px solid ${CLR.green}`, background:CLR.surface }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+            <div><div style={S.h2}>Print / Save PDF Analysis and Design Report</div><div style={{ fontSize:11, color:CLR.muted }}>Generates a clean 8.5 × 11 PDF-style report like the Two Way Slabs app: all result tables, dynamic result tables where applicable, and every member AFD/SFD/BMD/deflection diagram with controlled page breaks so tables and diagrams are not cut off.</div></div>
+            <button style={{ ...S.btn("primary"), marginLeft:"auto", padding:"8px 20px", fontSize:13 }} onClick={()=>window.print()}>🖨️ Print / Save PDF Report</button>
+          </div>
+        </div>
+        <div style={{ ...S.card, marginBottom:"2rem" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem", flexWrap:"wrap" }}>
+            <div style={S.h2}>Figure 1: Frame Diagram</div>
+            <span style={{ color:CLR.muted, fontSize:12, marginLeft:"auto" }}>Overlay:</span>
+            <select style={{ ...S.select, width:220 }} value={overlayMode} onChange={e=>setOverlayMode(e.target.value)}>
+              <option value="none">Frame only</option>
+              <option value="deformed">Deformed shape</option>
+              {(result.eigenModes || []).length > 0 && <option value="mode">Mode shape</option>}
+              <option value="axial">Axial load diagram</option>
+              <option value="sfd">Shear force diagram</option>
+              <option value="bmd">Bending moment diagram</option>
+            </select>
+            {overlayMode === "mode" && result.eigenModes && result.eigenModes.length > 0 && <><span style={{ color:CLR.muted, fontSize:12 }}>Mode</span><select style={{ ...S.select, width:112 }} value={activeModeIndex} onChange={e=>setActiveModeIndex(+e.target.value)}>{result.eigenModes.map((m,i)=><option key={m.mode} value={i}>Mode {m.mode}</option>)}</select></>}
+            <span style={{ color:CLR.muted, fontSize:12 }}>Scale</span>
+            <input type="number" step="0.25" min="0.25" style={{ ...S.input, width:76 }} value={overlayScale} onChange={e=>setOverlayScale(+e.target.value || 1)} />
+          </div>
+          <FrameDiagram nodes={result.nodes} members={result.members} result={result} units={units} overlayMode={overlayMode} overlayScale={overlayScale} modeShape={activeMode}/>
+        </div>
+
+        {result.isResponseSpectrum && <div style={{ display:"flex", justifyContent:"flex-end", margin:"-1rem 0 1rem" }}><label style={{ display:"flex", alignItems:"center", gap:8, color:CLR.muted, fontSize:12 }}><input type="checkbox" checked={showRSResults} onChange={e=>setShowRSResults(e.target.checked)}/> Show response spectrum result tables</label></div>}
+        {result.isResponseSpectrum && showRSResults && <ResponseSpectrumResults result={result}/>} 
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.5rem" }}>
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}><div style={{ padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div style={S.h2}>Table 1: Reactions</div></div><table style={S.table}><thead><tr><th style={S.th}>Node</th><th style={S.th}>Support</th><th style={S.th}>Rx ({U.force})</th><th style={S.th}>Ry ({U.force})</th><th style={S.th}>Mz ({U.moment})</th></tr></thead><tbody>{result.reactions.filter(r=>r.support!=="Free" || r.hasSpring).map((r,i)=><tr key={r.label} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={{ ...S.td, color:CLR.green, fontWeight:700 }}>{r.label}</td><td style={S.td}><span style={S.badge(r.hasSpring?CLR.orange:r.support==="Fixed"?CLR.teal:r.support==="Pinned"?CLR.yellow:CLR.violet)}>{r.supportLabel || r.support}</span></td><td style={S.td}>{fmt2(r.Rx)}</td><td style={S.td}>{fmt2(r.Ry)}</td><td style={S.td}>{fmt2(r.Mz)}</td></tr>)}</tbody></table></div>
+
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}><div style={{ padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div style={S.h2}>Table 2: Nodal Displacements</div></div><table style={S.table}><thead><tr><th style={S.th}>Node</th><th style={S.th}>ux ({U.disp})</th><th style={S.th}>uy ({U.disp})</th><th style={S.th}>θz (rad)</th></tr></thead><tbody>{result.displacements.map((d,i)=><tr key={d.label} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={{ ...S.td, color:CLR.violet, fontWeight:700 }}>{d.label}</td><td style={S.td}>{fmt3(d.ux)}</td><td style={S.td}>{fmt3(d.uy)}</td><td style={S.td}>{fmt3(d.rz)}</td></tr>)}</tbody></table></div>
+
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}><div style={{ padding:"1rem 1.25rem 0.75rem", borderBottom:`1px solid ${CLR.border}` }}><div style={S.h2}>Table 3: Member End Forces</div></div><table style={S.table}><thead><tr>{["Member","Release","N1","V1","M1","N2","V2","M2"].map(h=><th style={S.th} key={h}>{h}</th>)}</tr></thead><tbody>{result.memberResults.map((m,i)=><tr key={m.name} style={{ background:i%2===0?"transparent":"#ffffff05", cursor:"pointer", outline:activeMemberIndex===i?`1px solid ${CLR.accent}`:undefined }} onClick={()=>setActiveMemberIndex(i)}><td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{m.name}</td><td style={S.td}>{m.release}</td>{m.qDisplay.map((v,j)=><td style={S.td} key={j}>{j===2||j===5?v.toFixed(0):fmt2(v)}</td>)}</tr>)}</tbody></table><div style={{ padding:"0.4rem 1rem", fontSize:10, color:CLR.muted, borderTop:`1px solid ${CLR.border}` }}>Click a row to view that member's diagrams.</div></div>
+        </div>
+
+        {(result.eigenModes || []).length > 0 && <div style={{ ...S.card }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem", flexWrap:"wrap" }}>
+            <div style={S.h2}>Mass-Based Eigenvalue and Mode Shape Results</div>
+            <span style={{ color:CLR.muted, fontSize:12, marginLeft:"auto" }}>Mode:</span>
+            <select style={{ ...S.select, width:120 }} value={activeModeIndex} onChange={e=>setActiveModeIndex(+e.target.value)}>
+              {(result.eigenModes || []).map((m,i)=><option key={m.mode} value={i}>Mode {m.mode}</option>)}
+            </select>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"0.9fr 1.1fr", gap:"1rem" }}>
+            <div style={{ overflowX:"auto" }}>
+              <table style={S.table}><thead><tr><th style={S.th}>Mode</th><th style={S.th}>Period T (s)</th><th style={S.th}>Frequency (Hz)</th><th style={S.th}>λ = ω²</th><th style={S.th}>Max |φ|</th></tr></thead><tbody>{(result.eigenModes || []).map((m,i)=><tr key={m.mode} style={{ background:i%2===0?"transparent":"#ffffff05", cursor:"pointer", outline:activeModeIndex===i?`1px solid ${CLR.accent}`:undefined }} onClick={()=>setActiveModeIndex(i)}><td style={{ ...S.td, color:CLR.yellow, fontWeight:700 }}>{m.mode}</td><td style={S.td}>{fmt3(m.period)}</td><td style={S.td}>{fmt3(m.frequency)}</td><td style={S.td}>{fmt3(m.lambda)}</td><td style={S.td}>1.000</td></tr>)}</tbody></table>
+            </div>
+            <div style={{ overflowX:"auto" }}>
+              <table style={S.table}><thead><tr><th style={S.th}>Free DOF</th><th style={S.th}>Eigenvector Component φ</th></tr></thead><tbody>{activeMode && activeMode.components.map((c,i)=><tr key={c.label} style={{ background:i%2===0?"transparent":"#ffffff05" }}><td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{c.label}</td><td style={S.td}>{fmt3(c.value)}</td></tr>)}</tbody></table>
+            </div>
+          </div>
+          <div style={{ marginTop:"0.8rem", fontSize:11, color:CLR.muted }}>Mode shapes shown here are dynamic mass-based modes from the reduced stiffness and mass matrices. The mass matrix is assembled from the Mass Source definition. Rotational and other massless free DOFs are statically condensed during the modal calculation.</div>
+        </div>}
+
+        <div style={{ ...S.card }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1rem", flexWrap:"wrap" }}>
+            <div style={S.h2}>Figures 2 & 3: Member Diagrams</div>
+            <span style={{ color:CLR.muted, fontSize:12, marginLeft:"auto" }}>Member:</span>
+            <select style={{ ...S.select, width:120 }} value={activeMemberIndex} onChange={e=>setActiveMemberIndex(+e.target.value)}>
+              {result.memberResults.map((m,i)=><option key={m.name} value={i}>{m.name}</option>)}
+            </select>
+            <span style={{ color:CLR.muted, fontSize:12 }}>View:</span>
+            <select style={{ ...S.select, width:190 }} value={memberDiagramType} onChange={e=>setMemberDiagramType(e.target.value)}>
+              <option value="N">Axial load diagram</option>
+              <option value="V">Shear force diagram</option>
+              <option value="M">Bending moment diagram</option>
+              <option value="theta">Angular rotation</option>
+              <option value="vLocal">Deflection</option>
+            </select>
+          </div>
+          {activeMember && (()=>{
+            const cfg = memberDiagramType === "N" ? { title:`Axial Load Diagram (${U.force})`, color:CLR.red, unit:U.force }
+              : memberDiagramType === "V" ? { title:`Shear Force Diagram (${U.force})`, color:CLR.teal, unit:U.force }
+              : memberDiagramType === "M" ? { title:`Bending Moment Diagram (${U.moment})`, color:CLR.orange, unit:U.moment }
+              : memberDiagramType === "theta" ? { title:"Angular Rotation θ (rad)", color:CLR.violet, unit:"rad" }
+              : { title:`Deflection v (${U.disp})`, color:CLR.yellow, unit:U.disp };
+            return <div>
+              <div style={{ fontSize:11, color:CLR.muted, marginBottom:4 }}>{cfg.title} — {activeMember.name}</div>
+              <MemberDiagram member={activeMember} dataType={memberDiagramType} title={cfg.title} color={cfg.color} unitLabel={cfg.unit}/>
+            </div>;
+          })()}
+        </div>
+      </div>;
+    }
+
+    function TheoryView() {
+      const CodeBox = ({children}) => (
+        <div style={{ background:CLR.bg, border:`1px solid ${CLR.border}`, borderRadius:6, padding:"1rem", color:CLR.teal, fontSize:12, lineHeight:1.8, marginBottom:"1rem", overflowX:"auto" }}>{children}</div>
+      );
+      const H3 = ({children}) => <div style={{ fontSize:15, fontWeight:800, color:CLR.accent, marginTop:"1.5rem", marginBottom:"0.6rem", letterSpacing:"0.06em", textTransform:"uppercase" }}>{children}</div>;
+      const H4 = ({children}) => <div style={{ fontSize:13, fontWeight:800, color:CLR.text, marginTop:"1rem", marginBottom:"0.45rem" }}>{children}</div>;
+      const P = ({children}) => <p style={{ color:CLR.muted, lineHeight:1.75, fontSize:13, marginBottom:"0.8rem" }}>{children}</p>;
+      const MiniTable = ({rows}) => (
+        <table style={{ ...S.table, marginBottom:"1rem" }}>
+          <tbody>{rows.map((r,i)=>(
+            <tr key={i} style={{ background:i%2===0?"transparent":"#ffffff05" }}>
+              <td style={{ ...S.td, textAlign:"left", color:CLR.yellow, fontWeight:700, width:"30%" }}>{r[0]}</td>
+              <td style={{ ...S.td, textAlign:"left", color:CLR.muted }}>{r[1]}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      );
+      return (
+        <div>
+          <div style={S.card}>
+            <div style={{ fontSize:18, fontWeight:800, color:CLR.accent, marginBottom:"1rem" }}>Theory — Plane Frame Matrix Stiffness Method</div>
+            <P>
+              This application is a two-dimensional plane-frame analysis program. Its computation method follows the matrix stiffness method: the frame is idealized as straight prismatic members connected at nodes, each member is written in local coordinates, local quantities are transformed into global coordinates, the global stiffness matrix is assembled, unknown joint displacements are solved, and member end forces are recovered from the solved displacements.
+            </P>
+            <P>
+              The app is an analysis tool, not a member-design tool. It reports the structural response requested in structural analysis: axial forces, shears, bending moments, support reactions, and displacements.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>1. Analytical model used by the app</H3>
+            <P>
+              The frame is represented by a line diagram. Each member is drawn along its centroidal axis and each joint is treated as a node. This matches the usual plane-frame idealization: members are connected at nodes, and loads may be applied either at joints or along members.
+            </P>
+            <MiniTable rows={[
+              ["Node", "A point on the analytical line diagram where member ends meet and where displacement degrees of freedom are defined."],
+              ["Member", "A straight frame element between a near node and a far node."],
+              ["Global axes", "The structure-level X-Y coordinate system used for node coordinates, support restraints, reactions, and assembled equations."],
+              ["Local axes", "The member-level x-y coordinate system. Local x runs from the near node to the far node. Member loads in this app are entered in local axes only."]
+            ]}/>
+          </div>
+
+          <div style={S.card}>
+            <H3>2. Degrees of freedom</H3>
+            <P>
+              Each node of a plane frame has up to three degrees of freedom: horizontal translation, vertical translation, and in-plane rotation. Translations are positive in the positive global X and Y directions, and rotation is positive counterclockwise.
+            </P>
+            <CodeBox>
+              Nodal displacement vector at node i:<br/>
+              d_i = [u_i, v_i, θ_i]<sup>T</sup><br/><br/>
+              Member local displacement vector:<br/>
+              u_m = [u_1, v_1, θ_1, u_2, v_2, θ_2]<sup>T</sup>
+            </CodeBox>
+            <P>
+              Support conditions work by restraining selected degrees of freedom. A fixed support restrains u, v, and θ. A pin restrains u and v but releases θ. A vertical roller restrains vertical displacement only. A horizontal roller restrains horizontal displacement only. Free nodes have no conventional restraints. Translational and rotational spring supports add elastic stiffness at selected DOFs without fully fixing them.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>3. Local frame-element stiffness</H3>
+            <P>
+              The local stiffness matrix combines axial stiffness and flexural stiffness. Axial deformation is included through the AE/L terms, so the solver does not assume axial rigidity. Flexural behaviour is represented by the standard prismatic beam-column stiffness terms involving EI.
+            </P>
+            <CodeBox>
+              Local member stiffness relation:<br/>
+              Q = k u + Q_f<br/><br/>
+              Axial terms: AE/L<br/>
+              Flexural terms: 12EI/L³, 6EI/L², 4EI/L, 2EI/L
+            </CodeBox>
+            <P>
+              In the equation above, Q is the local member end-force vector, k is the local stiffness matrix, u is the local member end-displacement vector, and Q_f is the local fixed-end force vector caused by loads applied directly to the member.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>4. Member loads and fixed-end forces</H3>
+            <P>
+              Member loads are entered in the member local coordinate system. The program converts those local member loads into consistent fixed-end or equivalent nodal load vectors before the global system is solved. This is why the user does not need to manually input fixed-end forces.
+            </P>
+            <CodeBox>
+              Local load input convention:<br/>
+              qxA, qxB = local axial distributed load at near/far end<br/>
+              qyA, qyB = local transverse distributed load at near/far end<br/>
+              Px, Py = local concentrated loads<br/>
+              a = distance from near end to concentrated load<br/><br/>
+              Uniform load is the special case qA = qB.<br/>
+              Trapezoidal load is handled by qA ≠ qB.
+            </CodeBox>
+            <P>
+              The fixed-end force vector is assembled from the local member loads. Distributed loads with different start and end magnitudes are integrated as linearly varying loads. The same load model is then used to generate the member shear-force and bending-moment diagram points.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>5. Coordinate transformation</H3>
+            <P>
+              Since frame members can be vertical, horizontal, or inclined, their local stiffness matrices must be transformed into the global X-Y coordinate system before assembly. The app computes the member length and direction cosines from the near and far node coordinates.
+            </P>
+            <CodeBox>
+              Member geometry:<br/>
+              L = √[(X₂ − X₁)² + (Y₂ − Y₁)²]<br/>
+              c = (X₂ − X₁)/L<br/>
+              s = (Y₂ − Y₁)/L<br/><br/>
+              Displacement transformation:<br/>
+              u = T v<br/><br/>
+              Global member stiffness and fixed-end force:<br/>
+              K = T<sup>T</sup> k T<br/>
+              F_f = T<sup>T</sup> Q_f
+            </CodeBox>
+            <P>
+              This transformation lets the user define loads locally while the structure itself is solved globally.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>6. Member releases</H3>
+            <P>
+              Each member may be Fix-Fix, Pin-Fix, Fix-Pin, or Pin-Pin. A pin release at a member end means that the member end cannot transmit moment at that end. The app applies releases at the member level before assembling the member into the global stiffness matrix.
+            </P>
+            <CodeBox>
+              Release options:<br/>
+              Fix-Fix: both end rotations retained<br/>
+              Pin-Fix: near-end moment release<br/>
+              Fix-Pin: far-end moment release<br/>
+              Pin-Pin: both end moments released<br/><br/>
+              Released-end condition:<br/>
+              M_released = 0
+            </CodeBox>
+            <P>
+              Internally, the released rotational degrees are statically condensed from the local member relation so the released end moment is forced to zero while the remaining member stiffness and fixed-end effects are retained.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>7. Global stiffness assembly</H3>
+            <P>
+              After each member has been transformed to global coordinates, its stiffness terms are placed into the structure stiffness matrix according to the global degree-of-freedom numbers of its near and far nodes. Where multiple members frame into the same degree of freedom, their stiffness contributions are algebraically added.
+            </P>
+            <CodeBox>
+              Structure equilibrium equation:<br/>
+              S d = P − P_f<br/><br/>
+              S = assembled global structure stiffness matrix<br/>
+              d = unknown global joint displacement vector<br/>
+              P = applied nodal load vector<br/>
+              P_f = assembled fixed-joint force vector from member loads
+            </CodeBox>
+            <P>
+              The same assembly logic is also used for the fixed-joint force vector. Member load effects are transformed and stored in the corresponding global force rows before the unknown displacements are solved.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>8. Boundary conditions and solution</H3>
+            <P>
+              Supports are applied by restraining the appropriate degrees of freedom. After restraints are imposed, the remaining simultaneous equations are solved for unknown joint translations and rotations.
+            </P>
+            <CodeBox>
+              Unknowns solved by the app:<br/>
+              d = S<sup>−1</sup>(P − P_f)<br/><br/>
+              The app uses Gaussian elimination to solve the linear system.
+            </CodeBox>
+            <P>
+              If the stiffness matrix is singular, the app reports a solver error. This usually means the model is unstable, disconnected, has insufficient restraints, contains invalid member geometry, or has too many releases for the available supports.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>9. Member end-force recovery</H3>
+            <P>
+              Once the global joint displacements are known, each member extracts the six relevant global displacement components, transforms them back into local coordinates, and computes local member end forces.
+            </P>
+            <CodeBox>
+              Recovery sequence:<br/>
+              v_m = member global end displacements from d<br/>
+              u_m = T v_m<br/>
+              Q_m = k u_m + Q_f<br/><br/>
+              Q_m = [N₁, V₁, M₁, N₂, V₂, M₂]<sup>T</sup>
+            </CodeBox>
+            <P>
+              These recovered local end forces are the values reported in the member end-force table. They also supply the end conditions used to draw the member shear and bending moment diagrams.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>10. SFD, BMD, and deformed-shape output</H3>
+            <P>
+              The shear-force and bending-moment diagrams are generated member by member in local coordinates, from the recovered end forces and the applied local loads. The one-member diagrams are plotted from near end to far end. The frame overlay view draws the SFD or BMD directly on the frame for qualitative interpretation.
+            </P>
+            <CodeBox>
+              Differential relationships used for diagram shape:<br/>
+              dV/dx = −w(x)<br/>
+              dM/dx = V(x)<br/><br/>
+              Curvature relation used for deflected shape recovery:<br/>
+              vʺ(x) = M(x) / EI
+            </CodeBox>
+            <P>
+              For the displayed deformed shape, the program samples each member along its length and numerically integrates curvature to obtain the transverse deflection shape. The resulting local transverse deflection is combined with the solved nodal translations, then transformed back to global display coordinates.
+            </P>
+          </div>
+
+          <div style={S.card}>
+            <H3>11. What the results mean</H3>
+            <MiniTable rows={[
+              ["Displacements", "Global nodal translations and rotations after applying loads, member stiffnesses, and support restraints."],
+              ["Reactions", "Support forces and moments needed to enforce the restrained degrees of freedom."],
+              ["Member end forces", "Local axial force, shear, and moment at each end of each member."],
+              ["SFD/BMD overlays", "Graphical representation of internal shear and bending moment along each frame member."],
+              ["Deflected shape", "Scaled displacement shape used for visual interpretation; it is not drawn to true scale unless the scale factor is chosen accordingly."],
+              ["Eigenvalues and mode shapes", "Dynamic eigenvalues and eigenvectors from the reduced stiffness and mass matrices when a mass source is defined. These modes are used for response spectrum analysis and mode-shape display."]
+            ]}/>
+            <P>
+              The numerical results are governed by the chosen analytical model, units, member stiffness properties, load case definitions, local load directions, support restraints, and member releases.
+            </P>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [tab,setTab]=useState("inputs");
+      const [nodes,setNodes]=useState(DEFAULT_NODES.map(n=>({...n, fx:0, fy:0, mz:0})));
+      const [members,setMembers]=useState(DEFAULT_MEMBERS.map(m=>({...m, qxA:0, qxB:0, qyA:0, qyB:0, pointPx:0, pointPy:0, pointA:0})));
+      const [loadCases,setLoadCases]=useState(DEFAULT_LOAD_CASES.map(lc=>JSON.parse(JSON.stringify(lc))));
+      const [loadCombinations,setLoadCombinations]=useState(DEFAULT_LOAD_COMBINATIONS.map(c=>JSON.parse(JSON.stringify(c))));
+      const [activeLoadCaseId,setActiveLoadCaseId]=useState(DEFAULT_LOAD_CASES[0].id);
+      const [massSource,setMassSource]=useState(JSON.parse(JSON.stringify(DEFAULT_MASS_SOURCE)));
+      const [rsSettings,setRsSettings]=useState(JSON.parse(JSON.stringify(DEFAULT_RS_SETTINGS)));
+      const [units,setUnits]=useState("kip/ft");
+      const [result,setResult]=useState(null);
+      const run=()=>{ setResult(solveLoadCases(nodes,members,loadCases,loadCombinations,units,massSource,rsSettings)); setTab("results"); };
+      const tabs=["inputs","results","theory"];
+      return <div style={S.app}><header style={S.header}><div><div style={{fontSize:18,fontWeight:800,color:CLR.accent,letterSpacing:"0.05em"}}>Frames v0.6.6</div><div style={{fontSize:10,color:CLR.muted,letterSpacing:"0.1em"}}>PLANE FRAME ANALYSIS · 3 DOF/NODE · LOAD CASES · LOAD COMBINATIONS · RESPONSE SPECTRUM · SRSS</div></div><nav style={S.nav}>{tabs.map(t=><button key={t} style={S.navBtn(tab===t)} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}{t==="results"&&result&&<span style={{marginLeft:6,...S.badge(CLR.green),fontSize:9}}>✓</span>}</button>)}</nav></header><main style={S.main}>{tab==="inputs"&&<InputsView nodes={nodes} setNodes={setNodes} members={members} setMembers={setMembers} loadCases={loadCases} setLoadCases={setLoadCases} loadCombinations={loadCombinations} setLoadCombinations={setLoadCombinations} activeLoadCaseId={activeLoadCaseId} setActiveLoadCaseId={setActiveLoadCaseId} massSource={massSource} setMassSource={setMassSource} rsSettings={rsSettings} setRsSettings={setRsSettings} units={units} setUnits={setUnits} onRun={run}/>} {tab==="results"&&<ResultsView result={result} units={units}/>} {tab==="theory"&&<TheoryView/>}</main></div>;
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

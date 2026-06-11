@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Column Interaction v0.7.12 — CSA A23.3-24 P-M-M + Shear/Torsion Capacity Check</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d1117; color: #e6edf3; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; }
+    input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+    select { -webkit-appearance: none; appearance: none; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; font-family: inherit; font-size: 12px; padding: 4px 7px; border-radius: 4px; outline: none; width: 100%; text-align: center; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+    /* ── PRINT / PDF REPORT STYLES ─────────────────────────────────────────── */
+    .print-report-header { display: none; }
+    .print-only { display: none; }
+    .screen-only { display: inherit; }
+    .print-avoid { break-inside: avoid; page-break-inside: avoid; }
+
+    @media print {
+      @page { size: letter portrait; margin: 0.55in; }
+
+      html, body {
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-family: Arial, Helvetica, sans-serif !important;
+        font-size: 10pt !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      * {
+        color: #111827 !important;
+        border-color: #c9ced6 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+
+      header, nav, .screen-only, button { display: none !important; }
+
+      #root, main {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
+      }
+
+      .print-report-header {
+        display: block !important;
+        margin: 0 0 14pt 0 !important;
+        padding-bottom: 10pt !important;
+        border-bottom: 2px solid #111827 !important;
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .print-report-header h1 {
+        font-size: 18pt !important;
+        line-height: 1.2 !important;
+        margin: 0 0 4pt 0 !important;
+        font-weight: 800 !important;
+      }
+
+      .print-report-header .meta {
+        font-size: 8.5pt !important;
+        line-height: 1.45 !important;
+        color: #374151 !important;
+      }
+
+      .print-avoid {
+        background: #ffffff !important;
+        border: 1px solid #c9ced6 !important;
+        border-radius: 0 !important;
+        margin: 0 0 12pt 0 !important;
+        padding: 10pt !important;
+        overflow: visible !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      .print-table-section { padding: 0 !important; }
+
+      .print-table-section > div:first-child,
+      .print-diagram-section > div:first-child {
+        padding: 8pt 9pt !important;
+        background: #eef2f7 !important;
+        border-bottom: 1px solid #c9ced6 !important;
+      }
+
+      .print-table-section > div:nth-child(2) { overflow: visible !important; }
+
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 8.1pt !important;
+        page-break-inside: auto !important;
+      }
+
+      thead { display: table-header-group !important; }
+      tfoot { display: table-footer-group !important; }
+
+      tr {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      th, td {
+        padding: 4pt 4.5pt !important;
+        border: 1px solid #c9ced6 !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+      }
+
+      th {
+        background: #e8edf5 !important;
+        font-size: 7.4pt !important;
+        font-weight: 700 !important;
+      }
+
+      svg {
+        max-width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      .print-diagram-section {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      .print-diagram-section svg { max-height: 3.25in !important; }
+
+      .report-results-block { display: block !important; }
+      .report-results-subtab { display: block !important; }
+      .report-results-subtab-pm { break-before: page !important; page-break-before: always !important; }
+      .report-results-subtab-vt { break-before: page !important; page-break-before: always !important; }
+      .print-only { display: block !important; }
+      /* v0.7.12: Two-Way-Slabs-style major report section breaks: dashboard,
+         then P-M results on a new page, then V-T results on a new page. */
+      .print-section-title {
+        font-size: 15pt !important;
+        font-weight: 800 !important;
+        color: #111827 !important;
+        border-bottom: 2px solid #111827 !important;
+        padding-bottom: 5pt !important;
+        margin: 0 0 12pt 0 !important;
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
+      .print-page-break { break-before: page !important; page-break-before: always !important; }
+      .design-report-exclude { display: none !important; }
+
+      /* v0.7.12: make dashboard cards readable in printed/PDF reports.
+         The screen dashboard uses dark inline card styles; these overrides
+         convert the same cards to light report cards. */
+      .print-dashboard-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 7pt !important;
+        padding: 9pt !important;
+        background: #ffffff !important;
+      }
+
+      .print-dashboard-card {
+        background: #ffffff !important;
+        border: 1px solid #c9ced6 !important;
+        border-left: 4px solid #174ea6 !important;
+        border-radius: 0 !important;
+        padding: 8pt !important;
+        min-height: 0 !important;
+      }
+
+      .print-dashboard-card .print-card-label {
+        color: #4b5563 !important;
+        font-size: 7.2pt !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        margin-bottom: 3pt !important;
+      }
+
+      .print-dashboard-card .print-card-value {
+        color: #111827 !important;
+        font-size: 11pt !important;
+        font-weight: 800 !important;
+        line-height: 1.25 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef } = React;
+
+    // ── COLORS ───────────────────────────────────────────────────────────────────
+    const CLR = {
+      bg: "#0d1117", surface: "#161b22", card: "#1c2333", border: "#30363d",
+      accent: "#58a6ff", green: "#3fb950", red: "#f85149", yellow: "#d29922",
+      text: "#e6edf3", muted: "#8b949e", teal: "#39d353", violet: "#bc8cff",
+      orange: "#f0883e",
+    };
+
+    // ── DEMAND COLORS — one per demand row ───────────────────────────────────────
+    const DEMAND_COLORS = [
+      "#f85149", "#d29922", "#3fb950", "#bc8cff", "#f0883e",
+      "#39d353", "#58a6ff", "#ff7eb6", "#70e1f5", "#ffd460",
+    ];
+
+    // ── STYLES ────────────────────────────────────────────────────────────────────
+    const S = {
+      app: { minHeight:"100vh", background:CLR.bg, color:CLR.text, display:"flex", flexDirection:"column" },
+      header: { background:CLR.surface, borderBottom:`1px solid ${CLR.border}`, padding:"0 2rem", display:"flex", alignItems:"center", gap:"2rem", minHeight:60 },
+      nav: { display:"flex", gap:0, marginLeft:"auto" },
+      navBtn: active => ({ background:"none", border:"none", borderBottom: active ? `2px solid ${CLR.accent}` : "2px solid transparent", color: active ? CLR.accent : CLR.muted, padding:"18px 20px", cursor:"pointer", fontSize:13, fontFamily:"inherit", fontWeight: active ? 700 : 400, transition:"color 0.15s,border-color 0.15s" }),
+      main: { flex:1, padding:"2rem", maxWidth:1400, margin:"0 auto", width:"100%" },
+      card: { background:CLR.card, border:`1px solid ${CLR.border}`, borderRadius:8, padding:"1.5rem", marginBottom:"1.5rem" },
+      h2: { fontSize:14, fontWeight:700, color:CLR.accent, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"1rem" },
+      table: { width:"100%", borderCollapse:"collapse", fontSize:12 },
+      th: { background:"#21262d", color:CLR.muted, padding:"7px 10px", textAlign:"center", fontWeight:600, fontSize:11, textTransform:"uppercase", borderBottom:`1px solid ${CLR.border}` },
+      td: { padding:"6px 10px", textAlign:"center", borderBottom:"1px solid #21262d", color:CLR.text },
+      input: { background:"#0d1117", border:`1px solid ${CLR.border}`, borderRadius:4, color:CLR.text, fontFamily:"inherit", fontSize:12, padding:"4px 7px", width:"100%", textAlign:"center", outline:"none" },
+      btn: (v="primary") => ({ background: v==="primary"?CLR.accent : v==="danger"?"#3d1f1f":"#21262d", color: v==="danger"?CLR.red : v==="primary"?"#000":CLR.text, border:`1px solid ${v==="danger"?CLR.red : v==="primary"?CLR.accent:CLR.border}`, borderRadius:6, padding:"8px 18px", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:700 }),
+      badge: color => ({ display:"inline-block", background:color+"22", color, border:`1px solid ${color}55`, borderRadius:4, padding:"2px 8px", fontSize:11, fontWeight:700 }),
+    };
+
+    // ── REBAR TABLE ───────────────────────────────────────────────────────────────
+    const REBAR = {
+      "10M": { dia: 11.3, area: 100 },
+      "15M": { dia: 16.0, area: 200 },
+      "20M": { dia: 19.5, area: 300 },
+      "25M": { dia: 25.2, area: 500 },
+      "30M": { dia: 29.9, area: 700 },
+      "35M": { dia: 35.7, area: 1000 },
+      "45M": { dia: 43.7, area: 1500 },
+      "55M": { dia: 56.4, area: 2500 },
+    };
+
+    // ── DEFAULTS ──────────────────────────────────────────────────────────────────
+    const DEFAULT_COL = { b: 500, h: 500, fc: 25, fy: 400, Es: 200000, cover: 40, tieBar: "10M" };
+
+    // Layers: each layer has a dist (from compression face, mm) and an array of
+    // z-coordinates (mm from left face of column) where individual bars sit.
+    // This matches the "gridline" system in the spreadsheet exactly.
+    const DEFAULT_LAYERS = [
+      { id:1, barSize:"30M", dist:70,  zCoords:[70, 250, 430] },
+      { id:2, barSize:"30M", dist:250, zCoords:[70, 430]      },
+      { id:3, barSize:"30M", dist:430, zCoords:[70, 250, 430] },
+    ];
+
+    // Multiple load demands — each has Pf (N), Mfy strong-axis demand, Mfz weak-axis demand, and a label
+    const DEFAULT_DEMANDS = [
+      { id:1, label:"LC1", Pf: 1500000, Mfz: 250000000, Mfy: 250000000, Vfy: 180000, Vfz: 120000, Tf: 45000000 },
+    ];
+
+    // Closed transverse reinforcement / shear-torsion code-check defaults.
+    // Vfy = shear parallel to y/strong-axis web check, Vfz = shear parallel to z/weak-axis web check, Tf = factored torsion.
+    const DEFAULT_SHEAR_REINF = {
+      enabled: true, method: "CSA A23.3-24 simplified", stirrupBar: "10M", fyv: 400, spacing: 150,
+      legsY: 2, legsZ: 2, closedTies: true, thetaDeg: 35, betaOverride: 0, lambda: 1.0,
+      maxSpacing: 300, aggregateSize: 20, torsionCenterlineCover: 40, considerTorsion: true
+    };
+
+    // ── FORMATTING ────────────────────────────────────────────────────────────────
+    const fmt0 = v => (typeof v==="number" && isFinite(v)) ? v.toFixed(0) : "—";
+    const fmt2 = v => (typeof v==="number" && isFinite(v)) ? v.toFixed(2) : "—";
+    const fmt3 = v => (typeof v==="number" && isFinite(v)) ? v.toFixed(3) : "—";
+
+    // ── SOLVER (P vs selected bending axis) ─────────────────────────────────────────────────────
+    // This solver uses strain compatibility and force equilibrium:
+    //   - pure tension point first
+    //   - c sweep from 10 mm to h at 1 mm increments
+    //   - pure compression point last
+    //   - steel force = φs·fs·As, with no displaced-concrete deduction
+    function solveInteraction(col, layers, axis = "My") {
+      try {
+        const { b, h, fc, fy, Es } = col;
+        const phic = 0.65, phis = 0.85;
+        const ecu  = 0.0035;
+        const isMz = axis === "Mz";
+        const D = isMz ? b : h;       // My = strong axis uses h as section depth; Mz = weak axis uses b as section depth
+        const B = isMz ? h : b;       // width perpendicular to the bending direction
+        const axisTitle = isMz ? "P–Mz (Weak Axis)" : "P–My (Strong Axis)";
+        const momentDemandKey = isMz ? "Mfz" : "Mfy";
+        const momentLabel = isMz ? "Mfz" : "Mfy";
+
+        // CSA A23.3-24 Cl. 10.1.7 / spreadsheet named cells alpha and beta
+        const alpha1 = Math.max(0.67, 0.85 - 0.0015 * fc);
+        const beta1  = Math.max(0.67, 0.97 - 0.0025 * fc);
+
+        // For P–My strong-axis bending, use the existing layer distances d from the compression face.
+        // For P–Mz, rotate the uniaxial calculation 90° and use each bar's z-coordinate as its depth.
+        const designLayers = isMz
+          ? layers.flatMap((layer, i) => {
+              const rb = REBAR[layer.barSize];
+              if (!rb || !(layer.zCoords || []).length) return [];
+              return (layer.zCoords || []).map((z, k) => ({ index:`${i+1}.${k+1}`, barSize:layer.barSize, nBars:1, As:rb.area, d:+z }));
+            }).filter(layer => layer.d > 0).sort((a, bv) => a.d - bv.d)
+          : layers
+              .map((layer, i) => {
+                const rb = REBAR[layer.barSize];
+                const nBars = (layer.zCoords || []).length;
+                return rb && nBars > 0 && +layer.dist > 0
+                  ? { index:i+1, barSize:layer.barSize, nBars, As:rb.area*nBars, d:+layer.dist }
+                  : null;
+              })
+              .filter(Boolean)
+              .sort((a, bv) => a.d - bv.d);
+
+        if (designLayers.length === 0) return { error: "No reinforcement defined." };
+
+        // Individual bars are retained for the existing detailed bar table and section diagram logic.
+        const bars = [];
+        designLayers.forEach(layer => {
+          const AsBar = layer.As / layer.nBars;
+          for (let i = 0; i < layer.nBars; i++) bars.push({ As: AsBar, d: layer.d, layerIndex:layer.index });
+        });
+
+        const Ast = designLayers.reduce((sum, layer) => sum + layer.As, 0);
+        const Ag  = b * h;
+        const ey  = fy / Es;
+        const d_ext = designLayers[designLayers.length - 1].d;
+        const c_bal = (ecu / (ey + ecu)) * d_ext;
+
+        const Pro_tens = -1 * (phis * fy * Ast);
+        const Pro_comp = alpha1 * phic * fc * (Ag - Ast) + phis * fy * Ast;
+
+        function steelState(As, d, c) {
+          const eps_si = ecu * (1 - d / c);
+          const fs = Math.abs(eps_si) >= ey ? Math.sign(eps_si) * fy : eps_si * Es;
+          const Frsi = phis * fs * As;
+          const lever = D / 2 - d;
+          const Mrsi = Frsi * lever;
+          return { As, d, eps_si, fs, Frsi, lever, Mrsi };
+        }
+
+        function pointAtC(c) {
+          const a = beta1 * c;
+          let Cr, Mrc;
+          if (a > D) {
+            Mrc = 0;
+            Cr = alpha1 * phic * fc * D * B;
+          } else {
+            Cr = alpha1 * beta1 * phic * fc * c * B;
+            Mrc = Cr * (D / 2 - beta1 * c / 2);
+          }
+
+          let Pr = Cr;
+          let Mr = Mrc;
+          let Frs_sum = 0;
+          let Mrs_sum = 0;
+          const steel = bars.map(bar => {
+            const st = steelState(bar.As, bar.d, c);
+            Frs_sum += st.Frsi;
+            Mrs_sum += st.Mrsi;
+            Pr += st.Frsi;
+            Mr += st.Mrsi;
+            return { ...bar, ...st };
+          });
+
+          return { c, a, Cr, Mrc, Frs_sum, Mrs_sum, Pr, Mr, steel };
+        }
+
+        function layerBalanceState(layer) {
+          return { ...layer, ...steelState(layer.As, layer.d, c_bal) };
+        }
+
+        const balanceLayers = designLayers.map(layerBalanceState);
+        const balanceBase = pointAtC(c_bal);
+        const balance = {
+          ...balanceBase,
+          d_ext,
+          eb: balanceBase.Pr !== 0 ? balanceBase.Mr / balanceBase.Pr : NaN,
+          layers: balanceLayers,
+          summary: {
+            cb: c_bal,
+            Prb: balanceBase.Pr,
+            eb: balanceBase.Pr !== 0 ? balanceBase.Mr / balanceBase.Pr : NaN,
+            Mrb: balanceBase.Mr,
+          }
+        };
+
+        // The interaction curve uses a 1 mm neutral-axis increment.
+        const cValues = [];
+        for (let c = 10; c <= D; c += 1) cValues.push(c);
+        // Include the exact balanced condition even when cb is not an integer millimetre.
+        if (c_bal > 0 && c_bal <= D && !cValues.some(c => Math.abs(c - c_bal) < 1e-9)) cValues.push(c_bal);
+        cValues.sort((a, bv) => a - bv);
+
+        const curvePoints = [{ Pr: Pro_tens, Mr: 0, c: 0, label:"Pure tension" }];
+        cValues.forEach(c => {
+          const pt = pointAtC(c);
+          if (isFinite(pt.Pr) && isFinite(pt.Mr)) curvePoints.push(pt);
+        });
+        curvePoints.push({ Pr: Pro_comp, Mr: 0, c: Infinity, label:"Pure compression" });
+
+        const controlDefs = [
+          { label:"Pure compression", c:Infinity },
+          { label:"c = 7D/8", c:D*7/8 },
+          { label:"c = 3D/4", c:D*3/4 },
+          { label:"c = 5D/8", c:D*5/8 },
+          { label:"Balanced point", c:c_bal },
+          { label:"c = 3D/8", c:D*3/8 },
+          { label:"c = D/4", c:D/4 },
+          { label:"c = D/8", c:D/8 },
+          { label:"Pure tension", c:0 },
+        ];
+        const refPoints = controlDefs.map((def, i) => {
+          if (def.c === Infinity) return { index:i+1, label:def.label, c:Infinity, Pr:Pro_comp, Mr:0, a:D, Cr:alpha1*phic*fc*D*B, Frs_sum:phis*fy*Ast };
+          if (def.c === 0) return { index:i+1, label:def.label, c:0, Pr:Pro_tens, Mr:0, a:0, Cr:0, Frs_sum:-phis*fy*Ast };
+          return { index:i+1, label:def.label, ...pointAtC(def.c), c:def.c };
+        });
+
+        return { curvePoints, refPoints, alpha1, beta1, ecu, ey, c_bal,
+                 Pr_max:Pro_comp, Pr_maxLimit:Pro_comp, Pro_comp, Pro_tens,
+                 Ag, Ast, bars, designLayers, balance, curveIncrement:1,
+                 axis, axisTitle, momentDemandKey, momentLabel, D, B };
+      } catch(e) { return { error: e.message }; }
+    }
+
+
+    // ── FULL STRAIN-COMPATIBLE 3D BIAXIAL SURFACE SOLVER ────────────────────────
+    // Uses a rectangular concrete stress-block fiber integration with a rotating
+    // neutral axis. Steel strains are calculated from the same linear strain plane.
+    // Coordinates: d is vertical from the top face; z is horizontal from the left face.
+    // Reported moments follow the app convention: My uses the d lever arm, Mz uses the z lever arm.
+    function getBars2D(layers) {
+      const bars = [];
+      layers.forEach((layer, li) => {
+        const rb = REBAR[layer.barSize];
+        if (!rb || !(layer.zCoords || []).length) return;
+        (layer.zCoords || []).forEach((z, bi) => {
+          bars.push({
+            id: `${li+1}.${bi+1}`,
+            As: rb.area,
+            d: +layer.dist,
+            z: +z,
+            barSize: layer.barSize,
+          });
+        });
+      });
+      return bars;
+    }
+
+    function solveBiaxialSurface(col, layers) {
+      try {
+        const { b, h, fc, fy, Es } = col;
+        const phic = 0.65, phis = 0.85, ecu = 0.0035;
+        const alpha1 = Math.max(0.67, 0.85 - 0.0015 * fc);
+        const beta1  = Math.max(0.67, 0.97 - 0.0025 * fc);
+        const ey = fy / Es;
+        const bars = getBars2D(layers);
+        if (!bars.length) return { error: "No reinforcement defined for 3D biaxial analysis." };
+
+        const Ast = bars.reduce((s, bar) => s + bar.As, 0);
+        const Ag = b * h;
+        const Pro_tens = -phis * fy * Ast;
+        const Pro_comp = alpha1 * phic * fc * (Ag - Ast) + phis * fy * Ast;
+
+        // Concrete fibers: modest grid for fast in-browser full-section integration.
+        // Increase nY/nZ later if you want a denser surface.
+        const nY = 34, nZ = 34;
+        const dy = h / nY, dz = b / nZ;
+        const fiberArea = dy * dz;
+        const fibers = [];
+        for (let iy = 0; iy < nY; iy++) {
+          const d = (iy + 0.5) * dy;
+          for (let iz = 0; iz < nZ; iz++) {
+            const z = (iz + 0.5) * dz;
+            fibers.push({ d, z, area:fiberArea });
+          }
+        }
+
+        function pointAt(theta, c) {
+          // Normal vector in the d-z plane. theta=0 approaches strong-axis My bending;
+          // theta=90° approaches weak-axis Mz bending.
+          const nd = Math.cos(theta);
+          const nz = Math.sin(theta);
+          const corners = [
+            { d:0, z:0 }, { d:h, z:0 }, { d:0, z:b }, { d:h, z:b }
+          ];
+          const qMin = Math.min(...corners.map(pt => nd * pt.d + nz * pt.z));
+          const a = beta1 * c;
+
+          let Pr = 0, My = 0, Mz = 0, Cr = 0;
+          fibers.forEach(f => {
+            const x = nd * f.d + nz * f.z - qMin;
+            if (x >= 0 && x <= a) {
+              const F = alpha1 * phic * fc * f.area;
+              Pr += F;
+              Cr += F;
+              My += F * (h / 2 - f.d);
+              Mz += F * (b / 2 - f.z);
+            }
+          });
+
+          bars.forEach(bar => {
+            const x = nd * bar.d + nz * bar.z - qMin;
+            const eps = ecu * (1 - x / c);
+            const fs = Math.abs(eps) >= ey ? Math.sign(eps) * fy : eps * Es;
+            const Fs = phis * fs * bar.As;
+            Pr += Fs;
+            My += Fs * (h / 2 - bar.d);
+            Mz += Fs * (b / 2 - bar.z);
+          });
+
+          return { theta, thetaDeg: theta * 180 / Math.PI, c, Pr, My:Math.abs(My), Mz:Math.abs(Mz), Cr };
+        }
+
+        const thetaCount = 37;       // 0° to 90° in 2.5° increments
+        const cStep = 5;             // neutral-axis depth increment for surface generation
+        const families = [];
+        const allPoints = [];
+
+        for (let ti = 0; ti < thetaCount; ti++) {
+          const theta = (Math.PI / 2) * ti / (thetaCount - 1);
+          const nd = Math.cos(theta), nz = Math.sin(theta);
+          const projectionDepth = h * Math.abs(nd) + b * Math.abs(nz);
+          const pts = [{ theta, thetaDeg:theta*180/Math.PI, c:0, Pr:Pro_tens, My:0, Mz:0, type:"Pure tension" }];
+          for (let c = Math.max(5, cStep); c <= projectionDepth; c += cStep) {
+            pts.push(pointAt(theta, c));
+          }
+          pts.push(pointAt(theta, projectionDepth + cStep));
+          pts.push({ theta, thetaDeg:theta*180/Math.PI, c:Infinity, Pr:Pro_comp, My:0, Mz:0, type:"Pure compression" });
+          pts.sort((a,bv) => a.Pr - bv.Pr);
+          families.push({ theta, thetaDeg:theta*180/Math.PI, points:pts });
+          pts.forEach(pt => allPoints.push(pt));
+        }
+
+        return { families, points:allPoints, alpha1, beta1, ecu, ey, Pro_comp, Pro_tens, Ag, Ast, bars, fiberGrid:`${nY}×${nZ}`, thetaCount, cStep };
+      } catch(e) { return { error:e.message }; }
+    }
+
+    function interpolateFamilyAtP(points, Pf) {
+      const pts = [...points].sort((a,b) => a.Pr - b.Pr);
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[i], p1 = pts[i+1];
+        if (Pf >= p0.Pr && Pf <= p1.Pr) {
+          const denom = p1.Pr - p0.Pr;
+          const t = Math.abs(denom) < 1e-9 ? 0 : (Pf - p0.Pr) / denom;
+          return {
+            Pr: Pf,
+            My: p0.My + t * (p1.My - p0.My),
+            Mz: p0.Mz + t * (p1.Mz - p0.Mz),
+            c: (isFinite(p0.c) && isFinite(p1.c)) ? p0.c + t * (p1.c - p0.c) : NaN,
+            theta: p0.theta,
+            thetaDeg: p0.thetaDeg,
+          };
+        }
+      }
+      return null;
+    }
+
+    function getBiaxialSurfaceCheck(demand, surface) {
+      if (!surface || surface.error || !(surface.families || []).length) return null;
+      const MfY = Math.max(0, demand.Mfy || 0);
+      const MfZ = Math.max(0, demand.Mfz || 0);
+      const demandRad = Math.hypot(MfY, MfZ);
+      if (demandRad < 1e-9) return { ...demand, capacity:Infinity, ur3D:0, pass3D:demand.Pf <= surface.Pro_comp, thetaDeg:0, MyCap:Infinity, MzCap:Infinity };
+      const target = Math.atan2(MfZ, MfY);
+      let best = null;
+      surface.families.forEach(fam => {
+        const cap = interpolateFamilyAtP(fam.points, demand.Pf);
+        if (!cap) return;
+        const capRad = Math.hypot(cap.My, cap.Mz);
+        if (capRad <= 0) return;
+        // Directional closeness matters because a true surface contour is sampled by neutral-axis angle.
+        const capAngle = Math.atan2(cap.Mz, cap.My);
+        const anglePenalty = Math.abs(capAngle - target);
+        const score = anglePenalty;
+        if (!best || score < best.score) best = { ...cap, capRad, capAngle, score };
+      });
+      if (!best) return { ...demand, capacity:0, ur3D:Infinity, pass3D:false, thetaDeg:NaN, MyCap:0, MzCap:0 };
+      const ur3D = demandRad / best.capRad;
+      return { ...demand, capacity:best.capRad, ur3D, pass3D:ur3D <= 1.0 && demand.Pf <= surface.Pro_comp, thetaDeg:best.thetaDeg, MyCap:best.My, MzCap:best.Mz };
+    }
+
+    // Interpolate Mr on the curve at a given Pf
+    function interpMr(curvePoints, Pf) {
+      const pts = [...curvePoints].sort((a,b) => b.Pr - a.Pr);
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[i], p1 = pts[i+1];
+        if (Pf <= p0.Pr && Pf >= p1.Pr) {
+          const t = (Pf - p0.Pr) / (p1.Pr - p0.Pr);
+          return p0.Mr + t * (p1.Mr - p0.Mr);
+        }
+      }
+      return 0;
+    }
+
+    // ── COLUMN CROSS-SECTION SVG ──────────────────────────────────────────────────
+    // Bars are placed at exact (dist, zCoord) coordinates — dist = y from top,
+    // zCoord = z from left face. This faithfully replicates the spreadsheet grid system.
+    function ColumnDiagram({ col, layers, shearReinf }) {
+      const SVG_W = 760, SVG_H = 520;
+      const PAD_L = 165, PAD_R = 150, PAD_T = 78, PAD_B = 92;
+      const maxDrawW = SVG_W - PAD_L - PAD_R;
+      const maxDrawH = SVG_H - PAD_T - PAD_B;
+
+      const scale = Math.min(maxDrawW / Math.max(col.b, 1), maxDrawH / Math.max(col.h, 1));
+      const drawW = col.b * scale;
+      const drawH = col.h * scale;
+      const offsetX = PAD_L + (maxDrawW - drawW) / 2;
+      const offsetY = PAD_T + (maxDrawH - drawH) / 2;
+
+      const sx = z => offsetX + z * scale;
+      const sy = d => offsetY + d * scale;
+
+      const barDots = [];
+      layers.forEach(layer => {
+        if (!REBAR[layer.barSize] || !layer.zCoords) return;
+        const rawR = REBAR[layer.barSize].dia / 2;
+        const rPx = Math.max(6, Math.min(13, rawR * scale));
+        layer.zCoords.forEach(z => {
+          barDots.push({ cx: sx(z), cy: sy(layer.dist), r: rPx, dist: layer.dist, z });
+        });
+      });
+
+      const tieDia = REBAR[col.tieBar]?.dia || 11.3;
+      const cageOffset = col.cover + tieDia / 2;
+      const cageX = sx(cageOffset), cageY = sy(cageOffset);
+      const cageW = Math.max(0, (col.b - 2 * cageOffset) * scale);
+      const cageH = Math.max(0, (col.h - 2 * cageOffset) * scale);
+      const cy = offsetY + drawH / 2;
+      const cx = offsetX + drawW / 2;
+
+      return (
+        <svg width={SVG_W} height={SVG_H} viewBox={`0 0 ${SVG_W} ${SVG_H}`} style={{ display:"block", margin:"0 auto", maxWidth:"100%" }}>
+          <defs>
+            <marker id="arrRedLite" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,4 L8,0 L8,8 Z" fill={CLR.red} />
+            </marker>
+            <marker id="arrAxisLite" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L7,3.5 L0,7 Z" fill={CLR.muted} />
+            </marker>
+          </defs>
+
+          {/* Column outline, drawn to scale */}
+          <rect x={offsetX} y={offsetY} width={drawW} height={drawH}
+                fill="#21262d" stroke={CLR.accent} strokeWidth="2.2" />
+
+          {/* Tie cage */}
+          <rect x={cageX} y={cageY} width={cageW} height={cageH}
+                fill="none" stroke={shearReinf?.enabled ? CLR.teal : CLR.border} strokeWidth={shearReinf?.enabled ? "2.0" : "1.2"} strokeDasharray={shearReinf?.closedTies ? "" : "8,5"} opacity="0.95" />
+
+
+          {/* Width label */}
+          <text x={cx} y={offsetY - 16} textAnchor="middle" fontSize="12" fill={CLR.muted}>
+            b = {col.b} mm
+          </text>
+
+          {/* Left height dimension */}
+          <text x={offsetX - 16} y={cy} textAnchor="middle" fontSize="12" fill={CLR.muted}
+                transform={`rotate(-90,${offsetX - 16},${cy})`}>
+            h = {col.h} mm
+          </text>
+
+          {/* Neutral axis */}
+          <line x1={offsetX} y1={cy} x2={offsetX + drawW} y2={cy}
+                stroke={CLR.yellow} strokeWidth="1.1" strokeDasharray="10,6" opacity="0.75" />
+          <text x={offsetX + drawW + 8} y={cy + 4} fontSize="11" fill={CLR.yellow} fontWeight="700">N.A.</text>
+
+          {/* Local coordinate axes at the section top-left corner */}
+          <g transform={`translate(${offsetX},${offsetY})`}>
+            <line x1="0" y1="0" x2="48" y2="0" stroke={CLR.muted} strokeWidth="1.3" markerEnd="url(#arrAxisLite)" />
+            <line x1="0" y1="0" x2="0" y2="38" stroke={CLR.muted} strokeWidth="1.3" markerEnd="url(#arrAxisLite)" />
+            <text x="56" y="4" fontSize="11" fill={CLR.muted} fontWeight="700">Z</text>
+            <text x="-4" y="52" fontSize="11" fill={CLR.muted} fontWeight="700">D</text>
+          </g>
+
+          {/* Shear/torsion transverse reinforcement note */}
+          {shearReinf?.enabled && (
+            <g>
+              <text x={offsetX + drawW + 12} y={offsetY + 22} fontSize="11" fill={CLR.teal} fontWeight="700">
+                Closed {shearReinf.stirrupBar} ties @ {shearReinf.spacing} mm
+              </text>
+              <text x={offsetX + drawW + 12} y={offsetY + 40} fontSize="10" fill={CLR.muted}>
+                legs: Vy={shearReinf.legsY}, Vz={shearReinf.legsZ}
+              </text>
+            </g>
+          )}
+
+          {/* Bars */}
+          {barDots.map((b, i) => (
+            <g key={i}>
+              <circle cx={b.cx} cy={b.cy} r={b.r} fill={CLR.orange} stroke={CLR.bg} strokeWidth="1.8" />
+              <circle cx={b.cx} cy={b.cy} r={b.r * 0.42} fill={CLR.bg} opacity="0.55" />
+            </g>
+          ))}
+        </svg>
+      );
+    }
+
+    // ── INTERACTION DIAGRAM SVG ───────────────────────────────────────────────────
+    // Wide plot, generous padding, demand labels pinned to right margin
+    function InteractionDiagram({ res, demands }) {
+      const W = 820, H = 500;
+      const PL = 80, PR = 80, PT = 50, PB = 60; // compact right margin; LC labels are listed in the tables
+      const IW = W - PL - PR, IH = H - PT - PB;
+
+      if (!res || res.error) {
+        return (
+          <svg width={W} height={H} style={{ display:"block", margin:"0 auto" }}>
+            <text x={W/2} y={H/2} textAnchor="middle" fill={CLR.red} fontSize={13}>
+              {res?.error || "Run analysis first"}
+            </text>
+          </svg>
+        );
+      }
+
+      // Axis bounds — include all demand points
+      const allPr = res.curvePoints.map(p => p.Pr);
+      const allMr = res.curvePoints.map(p => p.Mr);
+      demands.forEach(d => { allPr.push(d.Pf); allMr.push(d[res.momentDemandKey] || 0); });
+
+      // Add a slightly roomier plotting envelope so the interaction curve and
+      // demand points are not visually over-zoomed in the report.
+      const maxPData = Math.max(...allPr);
+      const minPData = Math.min(...allPr, 0);
+      const maxMData = Math.max(...allMr, 1);
+
+      // Use full-axis padding on every side so the complete P–M curve, the demand
+      // points, and the annotations are all shown with breathing room.
+      const pTopPad = Math.max(0.14 * Math.max(Math.abs(maxPData), 1), 180000);
+      const pBotPad = Math.max(0.18 * Math.max(Math.abs(minPData), Math.abs(maxPData), 1), 180000);
+      const mLeftPad  = Math.max(0.08 * maxMData, 25000000);
+      const mRightPad = Math.max(0.22 * maxMData, 40000000);
+
+      const maxP = maxPData + pTopPad;
+      const minP = minPData - pBotPad;
+      const minM = -mLeftPad;
+      const maxM = maxMData + mRightPad;
+
+      const toX = M  => PL + ((M - minM) / (maxM - minM)) * IW;
+      const toY = P  => PT + IH - ((P - minP) / (maxP - minP)) * IH;
+      const zeroY = toY(0);
+
+      // Nice tick generation
+      function niceTicks(lo, hi, target = 6) {
+        const range = hi - lo;
+        const raw   = range / target;
+        const mag   = Math.pow(10, Math.floor(Math.log10(raw)));
+        const step  = [1,2,5,10].map(n => n*mag).find(s => s >= raw) || mag;
+        const ticks = [];
+        for (let v = Math.ceil(lo/step)*step; v <= hi + 1e-9; v = +(v + step).toFixed(12)) ticks.push(v);
+        return ticks;
+      }
+
+      const pTicks = niceTicks(minP, maxP, 7);
+      const mTicks = niceTicks(minM, maxM, 7);
+
+      const curvePath = res.curvePoints.filter(p => isFinite(p.Pr) && isFinite(p.Mr))
+        .map((p, i) => `${i===0?"M":"L"}${toX(p.Mr).toFixed(1)},${toY(p.Pr).toFixed(1)}`).join(" ");
+
+      // Balance point
+      const balPt = res.balance || res.refPoints.find(p => Math.abs(p.c - res.c_bal) < 2);
+
+      return (
+        <svg width={W} height={H} style={{ display:"block", margin:"0 auto", background:"transparent", overflow:"visible" }}>
+
+          {/* ── Grid lines ── */}
+          {pTicks.map((v, i) => {
+            const y = toY(v);
+            if (y < PT - 4 || y > PT + IH + 4) return null;
+            return (
+              <g key={`p${i}`}>
+                <line x1={PL} y1={y} x2={PL+IW} y2={y}
+                      stroke={CLR.border} strokeWidth={0.6} strokeDasharray="4,5" />
+                <text x={PL-8} y={y+4} textAnchor="end" fontSize={10} fill={CLR.muted}>
+                  {(v/1e3).toFixed(0)}
+                </text>
+              </g>
+            );
+          })}
+          {mTicks.map((v, i) => {
+            const x = toX(v);
+            if (x < PL - 4) return null;
+            return (
+              <g key={`m${i}`}>
+                <line x1={x} y1={PT} x2={x} y2={PT+IH}
+                      stroke={CLR.border} strokeWidth={0.6} strokeDasharray="4,5" />
+                <text x={x} y={PT+IH+16} textAnchor="middle" fontSize={10} fill={CLR.muted}>
+                  {(v/1e6).toFixed(0)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* ── Zero line (P=0) ── */}
+          <line x1={PL} y1={zeroY} x2={PL+IW} y2={zeroY}
+                stroke={CLR.muted} strokeWidth={1} strokeDasharray="6,4" opacity={0.5} />
+          <text x={PL+IW+4} y={zeroY+4} fontSize={9} fill={CLR.muted}>P=0</text>
+
+          {/* ── Axes ── */}
+          <line x1={PL} y1={PT} x2={PL} y2={PT+IH} stroke={CLR.muted} strokeWidth={1.5} />
+          <line x1={PL} y1={PT+IH} x2={PL+IW} y2={PT+IH} stroke={CLR.muted} strokeWidth={1.5} />
+
+          {/* ── Axis labels ── */}
+          <text x={14} y={PT+IH/2} textAnchor="middle" fontSize={11} fill={CLR.muted}
+                transform={`rotate(-90,14,${PT+IH/2})`}>Pr (kN)</text>
+          <text x={PL+IW/2} y={H-8} textAnchor="middle" fontSize={11} fill={CLR.muted}>{res.axisTitle} resistance (kN·m)</text>
+
+          {/* ── Interaction curve ── */}
+          <path d={curvePath} fill="none" stroke={CLR.accent} strokeWidth={2.2} strokeLinejoin="round" />
+          {/* Plot every calculated Mr-Pr value. The solver creates one point for each 1 mm c-increment. */}
+          {res.curvePoints.filter(p => isFinite(p.Pr) && isFinite(p.Mr)).map((p, i) => (
+            <circle key={`cap-${i}`} cx={toX(p.Mr)} cy={toY(p.Pr)} r={1.7} fill={CLR.accent} opacity={0.9} />
+          ))}
+          {/* Filled area under curve for visual weight */}
+          <path d={curvePath + ` L${toX(0).toFixed(1)},${toY(res.curvePoints[res.curvePoints.length-1].Pr).toFixed(1)} L${toX(0).toFixed(1)},${toY(res.curvePoints[0].Pr).toFixed(1)} Z`}
+                fill={CLR.accent + "18"} />
+
+          {/* ── Balance point ── */}
+          {balPt && (() => {
+            const bx = toX(balPt.Mr), by = toY(balPt.Pr);
+            return (
+              <g>
+                <circle cx={bx} cy={by} r={6} fill={CLR.yellow} stroke={CLR.bg} strokeWidth={1.5} />
+                <line x1={bx} y1={by} x2={bx+28} y2={by-18} stroke={CLR.yellow} strokeWidth={0.8} strokeDasharray="3,2" />
+                <text x={bx+30} y={by-20} fontSize={9} fill={CLR.yellow} fontWeight="700">Balance</text>
+                <text x={bx+30} y={by-10} fontSize={8} fill={CLR.yellow}>
+                  ({(balPt.Mr/1e6).toFixed(0)}, {(balPt.Pr/1e3).toFixed(0)})
+                </text>
+              </g>
+            );
+          })()}
+
+          {/* ── Pure compression label at top ── */}
+          {(() => {
+            const pt = res.curvePoints.reduce((best, p) => p.Pr > best.Pr ? p : best, res.curvePoints[0]);
+            const px = toX(pt.Mr), py = toY(pt.Pr);
+            return (
+              <g>
+                <circle cx={px} cy={py} r={4} fill={CLR.accent} />
+                <text x={px+8} y={py-4} fontSize={9} fill={CLR.accent}>
+                  Pro_comp = {(pt.Pr/1e3).toFixed(0)} kN
+                </text>
+              </g>
+            );
+          })()}
+
+          {/* ── Demand points — shown without per-LC text labels to keep the plot clean ── */}
+          {demands.map((d, i) => {
+            const color = DEMAND_COLORS[i % DEMAND_COLORS.length];
+            const dx = toX(d[res.momentDemandKey] || 0), dy = toY(d.Pf);
+            return (
+              <g key={d.id}>
+                <circle cx={dx} cy={dy} r={7} fill={color+"55"} stroke={color} strokeWidth={2} />
+                <line x1={dx-8} y1={dy} x2={dx+8} y2={dy} stroke={color} strokeWidth={1.5} />
+                <line x1={dx} y1={dy-8} x2={dx} y2={dy+8} stroke={color} strokeWidth={1.5} />
+              </g>
+            );
+          })}
+        </svg>
+      );
+    }
+
+    // ── BALANCED CONDITION HAND CALCULATION ────────────────────────────────────────
+    function BalancedHandCalculation({ res, col }) {
+      if (!res || res.error || !res.balance) return null;
+      const b = res.balance;
+      const Step = ({ n, title, children }) => (
+        <div style={{ marginBottom:"1.25rem", paddingBottom:"1rem", borderBottom:`1px solid ${CLR.border}` }}>
+          <div style={{ color:CLR.accent, fontWeight:800, fontSize:13, marginBottom:"0.75rem" }}>{n}. {title}</div>
+          <div style={{ paddingLeft:"1rem" }}>{children}</div>
+        </div>
+      );
+      const CalcLine = ({ children }) => (
+        <div style={{ fontSize:12, color:CLR.text, lineHeight:1.8, marginBottom:"0.25rem" }}>{children}</div>
+      );
+      const Eq = ({ children }) => (
+        <span style={{ color:CLR.teal, fontWeight:700 }}>{children}</span>
+      );
+      return (
+        <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+          <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+            <div style={S.h2}>Balanced Condition — Detailed Hand Calculation</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:"0.5rem", marginTop:"0.5rem" }}>
+              {["CSA 10.1.2 plane sections", "CSA 10.1.3 εcu", "CSA 10.1.4 balanced strain", "CSA 10.1.7 stress block", "CSA 8.4 resistance factors"].map(x => (
+                <span key={x} style={{ ...S.badge(CLR.accent), fontSize:10 }}>{x}</span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ padding:"1.25rem" }}>
+            <div style={{ fontSize:18, fontWeight:800, color:CLR.accent, marginBottom:"0.25rem" }}>
+              Reinforced Concrete Column: Balanced Condition
+            </div>
+            <div style={{ fontSize:13, fontWeight:700, color:CLR.accent, marginBottom:"1.25rem" }}>
+              Calculation Steps (CSA A23.3-24)
+            </div>
+
+            <Step n="1" title="Neutral axis depth at balanced strain condition — CSA A23.3-24 Cl. 10.1.4">
+              <CalcLine><strong>a) Reinforcement parameters:</strong></CalcLine>
+              <div style={{ overflowX:"auto", margin:"0.5rem 0 0.9rem" }}>
+                <table style={S.table}>
+                  <thead>
+                    <tr>
+                      <th style={S.th}>Layer</th>
+                      <th style={S.th}>Bar Size</th>
+                      <th style={S.th}>No. Bars</th>
+                      <th style={S.th}>As (mm²)</th>
+                      <th style={S.th}>d (mm)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {res.designLayers.map((layer, i) => (
+                      <tr key={i} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                        <td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{i+1}</td>
+                        <td style={S.td}>{layer.barSize}</td>
+                        <td style={S.td}>{layer.nBars}</td>
+                        <td style={{ ...S.td, color:CLR.teal, fontWeight:700 }}>{fmt0(layer.As)}</td>
+                        <td style={S.td}>{fmt0(layer.d)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <CalcLine><strong>b) Determine the neutral axis depth:</strong></CalcLine>
+              <CalcLine><Eq>ε_cmax = {res.ecu}</Eq></CalcLine>
+              <CalcLine><Eq>ε_y = fy / Es = {fmt0(col.fy)} / {fmt0(col.Es)} = {res.ey.toFixed(5)}</Eq></CalcLine>
+              <CalcLine><Eq>d_ext = {fmt2(b.d_ext)} mm</Eq></CalcLine>
+              <CalcLine><Eq>cb = [ε_cmax / (ε_y + ε_cmax)] × d_ext = [{res.ecu} / ({res.ey.toFixed(5)} + {res.ecu})] × {fmt2(b.d_ext)} = {fmt2(b.c)} mm</Eq></CalcLine>
+            </Step>
+
+            <Step n="2" title="Concrete and steel resultants — CSA A23.3-24 Cl. 8.4, 8.5, 10.1.2, 10.1.7">
+              <CalcLine><strong>a) Concrete stress resultant:</strong></CalcLine>
+              <CalcLine><Eq>Cr = α₁ × β₁ × φc × f′c × cb × b</Eq></CalcLine>
+              <CalcLine><Eq>Cr = {fmt3(res.alpha1)} × {fmt3(res.beta1)} × 0.65 × {fmt2(col.fc)} × {fmt2(b.c)} × {fmt0(col.b)} = {fmt0(b.Cr)} N</Eq></CalcLine>
+              <CalcLine><Eq>Mrc = Cr × (h/2 − β₁cb/2) = {fmt0(b.Cr)} × ({fmt0(col.h)}/2 − {fmt3(res.beta1)}×{fmt2(b.c)}/2) = {fmt0(b.Mrc)} N·mm</Eq></CalcLine>
+
+              <CalcLine><strong>b) Forces in the reinforcement:</strong></CalcLine>
+              <div style={{ overflowX:"auto", marginTop:"0.5rem" }}>
+                <table style={S.table}>
+                  <thead>
+                    <tr>
+                      <th style={S.th}>Layer</th>
+                      <th style={S.th}>εs = εcmax(1 − d/cb)</th>
+                      <th style={S.th}>fs (MPa)</th>
+                      <th style={S.th}>φs·fs·As = Frs (N)</th>
+                      <th style={S.th}>Lever Arm h/2 − d (mm)</th>
+                      <th style={S.th}>Mrs = Frs(h/2 − d) (N·mm)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {b.layers.map((layer, i) => (
+                      <tr key={i} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                        <td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{i+1}</td>
+                        <td style={{ ...S.td, color:layer.eps_si>=0?CLR.red:CLR.teal }}>{layer.eps_si.toFixed(5)}</td>
+                        <td style={{ ...S.td, color:layer.fs>=0?CLR.red:CLR.teal }}>{fmt2(layer.fs)}</td>
+                        <td style={{ ...S.td, color:layer.Frsi>=0?CLR.orange:CLR.teal, fontWeight:700 }}>{fmt0(layer.Frsi)}</td>
+                        <td style={S.td}>{fmt2(layer.lever)}</td>
+                        <td style={S.td}>{fmt0(layer.Mrsi)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Step>
+
+            <Step n="3" title="Balanced axial resistance — equilibrium, CSA A23.3-24 Cl. 10.1.1">
+              <CalcLine><Eq>Prb = Cr + ΣFrsi = {fmt0(b.Cr)} + {fmt0(b.Frs_sum)} = {fmt0(b.Pr)} N = {(b.Pr/1000).toFixed(2)} kN</Eq></CalcLine>
+            </Step>
+
+            <Step n="4" title="Balanced eccentricity about section centroid">
+              <CalcLine><Eq>eb = ΣM about CG / Prb = {fmt0(b.Mr)} / {fmt0(b.Pr)} = {fmt2(b.eb)} mm</Eq></CalcLine>
+            </Step>
+
+            <Step n="5" title="Balanced moment resistance — CSA A23.3-24 Cl. 10.1">
+              <CalcLine><Eq>Mrb = Prb × eb = {fmt0(b.Pr)} × {fmt2(b.eb)} = {(b.Mr/1000000).toFixed(2)} kN·m</Eq></CalcLine>
+            </Step>
+
+            <div style={{ marginTop:"1rem" }}>
+              <div style={{ color:CLR.accent, fontWeight:800, fontSize:13, marginBottom:"0.75rem" }}>Balanced Condition: Design Outputs</div>
+              <div style={{ overflowX:"auto" }}>
+                <table style={S.table}>
+                  <thead>
+                    <tr>
+                      <th style={S.th}>Parameter</th>
+                      <th style={S.th}>Value</th>
+                      <th style={S.th}>Unit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ["cb", fmt2(b.c), "mm"],
+                      ["Prb", (b.Pr/1000).toFixed(2), "kN"],
+                      ["eb", fmt2(b.eb), "mm"],
+                      ["Mrb", (b.Mr/1000000).toFixed(2), "kN·m"],
+                    ].map(([p,v,u], i) => (
+                      <tr key={p} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                        <td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{p}</td>
+                        <td style={{ ...S.td, color:CLR.teal, fontWeight:700 }}>{v}</td>
+                        <td style={{ ...S.td, color:CLR.muted }}>{u}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── THEORY VIEW ───────────────────────────────────────────────────────────────
+    function TheoryView() {
+      const CodeBox = ({ children }) => (
+        <div style={{ background:"#0d1117", border:`1px solid ${CLR.border}`, padding:"1rem", borderRadius:6, fontFamily:"monospace", fontSize:12, lineHeight:1.75, color:CLR.teal, marginBottom:"1rem", overflowX:"auto" }}>
+          {children}
+        </div>
+      );
+      const H3 = ({ c }) => <div style={{ fontSize:15, fontWeight:800, color:CLR.accent, marginTop:"1.5rem", marginBottom:"0.5rem" }}>{c}</div>;
+      const P  = ({ c }) => <p style={{ fontSize:13, color:CLR.muted, lineHeight:1.8, marginBottom:"0.75rem" }}>{c}</p>;
+      return (
+        <div style={S.card}>
+          <div style={{ fontSize:18, fontWeight:800, color:CLR.accent, marginBottom:"1rem" }}>
+            Column Interaction Diagram Theory — Formula Sheet + CSA A23.3-24 Clause Map
+          </div>
+          <P c="This theory tab lists the formula-sheet equations relevant to this column-interaction app. v0.7.10 also adds a CSA A23.3-24 combined shear and torsion capacity-check workflow with user-input transverse reinforcement. The shear/torsion routine does not auto-design reinforcement; it calculates the capacity of the inputted column section and checks each inputted shear/torsion demand against that capacity." />
+
+          <H3 c="1. Equivalent rectangular stress block" />
+          <CodeBox>
+            a = β₁ c<br/>
+            α₁ = 0.85 − 0.0015 f′c ≥ 0.67<br/>
+            β₁ = 0.97 − 0.0025 f′c ≥ 0.67<br/>
+            φc = 0.65<br/>
+            φs = 0.85<br/>
+            εc,max = 0.0035
+          </CodeBox>
+          <P c="Formula-sheet source: Flexural Design of Beams and One-Way Slabs, Item 1. CSA map: resistance factors from CSA 8.4; strain and rectangular stress block from CSA 10.1.3 and 10.1.7." />
+
+          <H3 c="2. Balanced condition" />
+          <CodeBox>
+            Balanced condition occurs when the tension-side steel reaches εs = εy at the same time the concrete reaches εc,max = 0.0035.<br/>
+            εy = fy / Es<br/>
+            c / d = 700 / (700 + fy)
+          </CodeBox>
+          <P c="Formula-sheet source: Reinforced Concrete Columns, Item 1, and Flexural Design, Item 3. In this app, the balanced neutral-axis depth is calculated using the same strain-compatibility relationship with the extreme tension layer depth." />
+
+          <H3 c="3. Axial resistance of short RC columns" />
+          <CodeBox>
+            Pro = α₁ φc f′c Ag + φs fy Ast<br/>
+            For tied columns: Pr,max = 0.80 Pro<br/>
+            For spiral columns: Pr,max = 0.90 Pro
+          </CodeBox>
+          <P c="Formula-sheet source: Reinforced Concrete Columns, Item 2. This app is set up for tied columns, so the interaction diagram caps the concentric compression end using the tied-column limit." />
+
+          <H3 c="4. Column force equilibrium" />
+          <CodeBox>
+            Pr = Cr + Frs1 + Frs2<br/>
+            Generalized in the app as:<br/>
+            Pr = Cr + Σ Frsi
+          </CodeBox>
+          <P c="Formula-sheet source: Reinforced Concrete Columns, Item 3. The formula sheet shows a two-layer version; the app uses the same equilibrium equation but sums over every active reinforcement layer/bar row." />
+
+          <H3 c="5. Column moment equilibrium" />
+          <CodeBox>
+            Mr = Cr (h/2 − β₁c/2) + Frs1 (h/2 − d1) + Frs2 (h/2 − d2)<br/>
+            Generalized in the app as:<br/>
+            Mr = Cr (h/2 − β₁c/2) + Σ [Frsi (h/2 − di)]
+          </CodeBox>
+          <P c="Formula-sheet source: Reinforced Concrete Columns, Item 3. The app evaluates this expression at each neutral-axis depth c to generate the P–M interaction curve." />
+
+          <H3 c="6. Steel strain and steel force used in the app" />
+          <CodeBox>
+            εsi = εc,max (1 − di/c)<br/>
+            εy = fy / Es<br/>
+            fsi = Es εsi, limited to ±fy<br/>
+            Frsi = φs fsi Asi<br/>
+            Mrsi = Frsi (h/2 − di)
+          </CodeBox>
+          <P c="These equations connect the formula sheet’s balanced-condition statement to the layer-by-layer force and moment summation used in the interaction-diagram calculation." />
+
+          <H3 c="7. Interaction curve generation" />
+          <CodeBox>
+            For each neutral-axis depth c:<br/>
+            a = β₁c<br/>
+            Cr = α₁ φc f′c b a<br/>
+            Pr = Cr + Σ Frsi<br/>
+            Mr = Cr (h/2 − a/2) + Σ [Frsi (h/2 − di)]
+          </CodeBox>
+          <P c="The plotted capacity curve uses every c value from 10 mm to h in 1 mm increments, plus the exact balanced c value when it is not an integer. No calculation logic was changed for this theory-tab update." />
+
+          <H3 c="8. Demand check shown in Table 1" />
+          <CodeBox>
+            At each factored demand (Pf, Mfy, Mfz):<br/>
+            Mry or Mrz = interpolated moment resistance at Pf for the selected bending axis<br/>
+            UR_M = Mf / Mr<br/>
+            UR_P = Pf / Pr,max<br/>
+            Status = OK when all displayed utilization ratios are ≤ 1.0
+          </CodeBox>
+          <H3 c="9. v0.5.2 additions" />
+          <CodeBox>
+            Bending mode can be set to P–My, P–Mz, or both.<br/>
+            Control points are listed for pure compression, 7D/8, 3D/4, 5D/8, balanced, 3D/8, D/4, D/8, and pure tension.<br/>
+            Export Report uses the browser print workflow to create a printable calculation package.
+          </CodeBox>
+        </div>
+      );
+    }
+
+
+    // ── APP ───────────────────────────────────────────────────────────────────────
+
+    // ── VALIDATION, SUMMARY, BIAXIAL CHECKS, REPORTING ───────────────────────────
+    function getValidationWarnings(col, layers, demands, res) {
+      const warnings = [];
+      if (col.b <= 0 || col.h <= 0) warnings.push({ level:"error", msg:"Column width and height must be greater than zero." });
+      if (col.fc <= 0 || col.fy <= 0 || col.Es <= 0) warnings.push({ level:"error", msg:"Material strengths and Es must be greater than zero." });
+      const tieDia = REBAR[col.tieBar]?.dia || 0;
+      const cageOffset = col.cover + tieDia / 2;
+      if (cageOffset * 2 >= col.b || cageOffset * 2 >= col.h) warnings.push({ level:"error", msg:"Cover plus tie diameter places the tie cage outside the section." });
+      if (col.cover < 20) warnings.push({ level:"warn", msg:"Concrete cover is low. Confirm exposure and CSA cover requirements before using in design." });
+      let totalBars = 0, Ast = 0;
+      layers.forEach((layer, li) => {
+        const rb = REBAR[layer.barSize];
+        if (!rb) warnings.push({ level:"error", msg:`Layer ${li+1}: invalid bar size.` });
+        const zc = layer.zCoords || [];
+        totalBars += zc.length;
+        Ast += (rb?.area || 0) * zc.length;
+        if (layer.dist < 0 || layer.dist > col.h) warnings.push({ level:"error", msg:`Layer ${li+1}: d = ${layer.dist} mm is outside the section depth.` });
+        zc.forEach((z, zi) => {
+          if (z < 0 || z > col.b) warnings.push({ level:"error", msg:`Layer ${li+1}, bar ${zi+1}: z = ${z} mm is outside the section width.` });
+        });
+      });
+      if (totalBars === 0) warnings.push({ level:"error", msg:"No longitudinal reinforcement is defined." });
+      const rho = Ast / Math.max(col.b * col.h, 1);
+      if (rho > 0 && rho < 0.01) warnings.push({ level:"warn", msg:`Steel ratio ρ = ${(rho*100).toFixed(2)}% is low for a compression member. Confirm CSA reinforcement limits.` });
+      if (rho > 0.08) warnings.push({ level:"warn", msg:`Steel ratio ρ = ${(rho*100).toFixed(2)}% is high. Check constructability and CSA reinforcement limits.` });
+      if (res && !res.error) {
+        demands.forEach(d => {
+          if (d.Pf > res.Pr_maxLimit) warnings.push({ level:"error", msg:`${d.label}: Pf exceeds the calculated concentric compression resistance.` });
+        });
+      }
+      return warnings;
+    }
+
+    function getAllAxisChecks(demands, allAxes, surface3D) {
+      if (!allAxes || allAxes.My?.error || allAxes.Mz?.error) return [];
+      return demands.map(d => {
+        const Mry = interpMr(allAxes.My.curvePoints, d.Pf);
+        const Mrz = interpMr(allAxes.Mz.curvePoints, d.Pf);
+        const urY = Mry > 0 ? (d.Mfy || 0) / Mry : Infinity;
+        const urZ = Mrz > 0 ? (d.Mfz || 0) / Mrz : Infinity;
+        const linear = urY + urZ;
+        const elliptical = Math.sqrt(urY*urY + urZ*urZ);
+        const surfaceCheck = getBiaxialSurfaceCheck(d, surface3D);
+        const ur3D = surfaceCheck ? surfaceCheck.ur3D : elliptical;
+        const pass3D = surfaceCheck ? surfaceCheck.pass3D : elliptical <= 1.0;
+        return { ...d, Mry, Mrz, urY, urZ, linear, elliptical, ur3D, pass3D, surfaceCheck, passApprox: pass3D && d.Pf <= allAxes.My.Pr_maxLimit };
+      });
+    }
+
+
+    // ── CSA A23.3-24 SHEAR + TORSION CAPACITY CHECKS ───────────────────────────
+    // Implements the CSA A23.3-24 capacity-check workflow used by the uploaded CSI concrete-frame manual:
+    //   Vc = φc λ β √f'c bw dv; Vs = φs Av fyv dv cotθ/s; Vr,max = 0.25 φc f'c bw dv
+    //   Tcr = 0.38 φc λ √f'c Acp²/Pcp; Tr = 2 Ao At φs fyv cotθ/s
+    //   Combined shear/torsion concrete crushing check per CSA 11.3.10.4(b).
+    function calcShearTorsion(col, layers, demands, shearReinf) {
+      const phic = 0.65, phis = 0.85;
+      const lambda = Math.max(0.75, Math.min(1.0, +shearReinf.lambda || 1.0));
+      const stirrup = REBAR[shearReinf.stirrupBar] || REBAR["10M"];
+      const tieDia = stirrup.dia || 11.3;
+      const longBars = getBars2D(layers);
+      const Ast = Math.max(1, longBars.reduce((s,b)=>s+(b.As||0),0));
+      const maxLongDia = Math.max(...longBars.map(b => REBAR[b.barSize]?.dia || 0), 25.2);
+      const dY = Math.max(0.72 * col.h, col.h - col.cover - tieDia - maxLongDia / 2); // CSA dv = max(0.9d, 0.72h)
+      const dZ = Math.max(0.72 * col.b, col.b - col.cover - tieDia - maxLongDia / 2);
+      const bwY = col.b;
+      const bwZ = col.h;
+      const s = Math.max(+shearReinf.spacing || 1, 1);
+      const thetaInput = Math.max(22, Math.min(45, +shearReinf.thetaDeg || 35));
+      const fcRoot = Math.min(Math.sqrt(Math.max(col.fc, 0)), 8); // CSA shear/torsion cap on √f'c
+      const Acp = col.b * col.h;
+      const Pcp = 2 * (col.b + col.h);
+      const ccl = Math.max(+shearReinf.torsionCenterlineCover || 40, col.cover + tieDia / 2);
+      const xoh = Math.max(1, col.b - 2 * ccl);
+      const yoh = Math.max(1, col.h - 2 * ccl);
+      const Aoh = xoh * yoh;
+      const Ao = 0.85 * Aoh;
+      const ph = 2 * (xoh + yoh);
+      const alphaT = Math.max(0.60, 1.0 - 0.005 * (+col.fc || 0));
+      const Tcr = 0.38 * phic * lambda * fcRoot * (Acp * Acp / Pcp);
+      const At = shearReinf.closedTies ? stirrup.area : 0;
+      const AvY = Math.max(0, +shearReinf.legsY || 0) * stirrup.area;
+      const AvZ = Math.max(0, +shearReinf.legsZ || 0) * stirrup.area;
+      const AvsYProv = AvY / s;
+      const AvsZProv = AvZ / s;
+      const AtsProv = At / s;
+      const minAvsY = 0.06 * fcRoot / Math.max(+shearReinf.fyv || 1, 1) * bwY;
+      const minAvsZ = 0.06 * fcRoot / Math.max(+shearReinf.fyv || 1, 1) * bwZ;
+      const combinedMinY = 0.06 * fcRoot / Math.max(+shearReinf.fyv || 1, 1) * bwY;
+      const combinedMinZ = 0.06 * fcRoot / Math.max(+shearReinf.fyv || 1, 1) * bwZ;
+      const maxSpacingBaseY = Math.min(+shearReinf.maxSpacing || 300, 0.7 * dY, 600);
+      const maxSpacingBaseZ = Math.min(+shearReinf.maxSpacing || 300, 0.7 * dZ, 600);
+
+      function betaThetaForDemand(d, axis) {
+        const dv = axis === "Y" ? dY : dZ;
+        const Vf = Math.abs(axis === "Y" ? (d.Vfy || 0) : (d.Vfz || 0));
+        const Mf = Math.abs(axis === "Y" ? (d.Mfy || 0) : (d.Mfz || 0));
+        // App convention: Pf positive compression. CSA strain equation uses axial tension positive.
+        const NfCSA = -(d.Pf || 0);
+        const hasMinTransverse = (axis === "Y" ? AvsYProv >= minAvsY : AvsZProv >= minAvsZ);
+        const simplifiedOK = NfCSA <= 0 && (+col.fy || 0) <= 400 && (+col.fc || 0) <= 60 && hasMinTransverse;
+        if (+shearReinf.betaOverride > 0) {
+          const beta = Math.max(0.05, +shearReinf.betaOverride);
+          const theta = thetaInput;
+          return { beta, theta, epsx:0, method:"User β / CSA θ input", simplifiedOK:false };
+        }
+        if (simplifiedOK) return { beta:0.18, theta:35, epsx:0, method:"CSA 11.3.6.3 simplified", simplifiedOK:true };
+        const Ec = 4500 * Math.sqrt(Math.max(col.fc, 0));
+        const Aconc = Math.max(1, col.b * col.h - Ast);
+        let epsx = (Mf / Math.max(dv,1) + Vf + 0.5 * NfCSA) / (2 * col.Es * Ast);
+        if (epsx < 0) epsx = Math.max(-0.0002, (Mf / Math.max(dv,1) + Vf + 0.5 * NfCSA) / (2 * (col.Es * Ast + Ec * Aconc)));
+        epsx = Math.min(0.003, Math.max(-0.0002, epsx));
+        const Sze = hasMinTransverse ? 300 : Math.max(300, Math.min(dv, 35/(15+(+shearReinf.aggregateSize||20))*dv));
+        const beta = Math.max(0.05, (0.40 / (1 + 1500 * epsx)) * (1300 / (1000 + Sze)));
+        const theta = Math.max(22, Math.min(45, 29 + 7000 * epsx));
+        return { beta, theta, epsx, method:"CSA 11.3.6.4 general", simplifiedOK:false };
+      }
+
+      function shearCapacity(d, axis) {
+        const bw = axis === "Y" ? bwY : bwZ;
+        const dv = axis === "Y" ? dY : dZ;
+        const Av = axis === "Y" ? AvY : AvZ;
+        const betaTheta = betaThetaForDemand(d, axis);
+        const theta = betaTheta.theta * Math.PI/180;
+        const cotTheta = 1/Math.tan(theta);
+        const Vc = phic * lambda * betaTheta.beta * fcRoot * bw * dv;
+        const Vs = phis * Av * (+shearReinf.fyv || 0) * dv * cotTheta / s;
+        const VrMax = 0.25 * phic * (+col.fc || 0) * bw * dv;
+        const Vr = Math.min(Vc + Vs, VrMax);
+        const Vf = Math.abs(axis === "Y" ? (d.Vfy || 0) : (d.Vfz || 0));
+        const minRequired = Vf > Vc || Math.max(col.b,col.h) > 750 || Math.abs(d.Tf || 0) > 0.25*Tcr;
+        const reqAvsStrength = Vf <= Vc ? 0 : (Vf - Vc) * Math.tan(theta) / (phis * Math.max(+shearReinf.fyv || 1,1) * dv);
+        const reqAvs = Math.max(reqAvsStrength, minRequired ? (axis === "Y" ? minAvsY : minAvsZ) : 0);
+        const provAvs = Av / s;
+        return { ...betaTheta, cotTheta, Vc, Vs, Vr, VrMax, reqAvs, reqAvsStrength, provAvs, minRequired, minAvs:(axis === "Y" ? minAvsY : minAvsZ) };
+      }
+
+      const results = demands.map(d => {
+        const y = shearCapacity(d, "Y");
+        const z = shearCapacity(d, "Z");
+        const thetaT = Math.max(y.theta, z.theta, thetaInput);
+        const cotT = 1/Math.tan(thetaT*Math.PI/180);
+        const torsionRequired = Math.abs(d.Tf || 0) > 0.25 * Tcr && !!shearReinf.considerTorsion;
+        const Tr = torsionRequired ? (2 * Ao * At * phis * (+shearReinf.fyv || 0) * cotT / s) : Infinity;
+        const reqAts = torsionRequired ? Math.abs(d.Tf || 0) / (2 * Ao * phis * Math.max(+shearReinf.fyv || 1,1) * cotT) : 0;
+        const stressShearY = Math.abs(d.Vfy || 0) / Math.max(bwY * dY, 1);
+        const stressShearZ = Math.abs(d.Vfz || 0) / Math.max(bwZ * dZ, 1);
+        const torsionStress = Math.abs(d.Tf || 0) * ph / Math.max(0.85 * alphaT * Aoh * Aoh, 1);
+        const stressLimit = 0.25 * phic * (+col.fc || 0);
+        const crushY = (stressShearY*stressShearY + torsionStress*torsionStress) / Math.max(stressLimit, 1e-9);
+        const crushZ = (stressShearZ*stressShearZ + torsionStress*torsionStress) / Math.max(stressLimit, 1e-9);
+        const maxSpacingY = (Math.abs(d.Vfy||0) > 0.125*lambda*phic*fcRoot*bwY*dY || torsionRequired) ? maxSpacingBaseY/2 : maxSpacingBaseY;
+        const maxSpacingZ = (Math.abs(d.Vfz||0) > 0.125*lambda*phic*fcRoot*bwZ*dZ || torsionRequired) ? maxSpacingBaseZ/2 : maxSpacingBaseZ;
+        const spacingOK = s <= Math.min(maxSpacingY, maxSpacingZ);
+        const combinedMinOKY = !torsionRequired || (AvsYProv + 2*AtsProv >= combinedMinY);
+        const combinedMinOKZ = !torsionRequired || (AvsZProv + 2*AtsProv >= combinedMinZ);
+        const urVy = Math.abs(d.Vfy || 0) / Math.max(y.Vr, 1e-9);
+        const urVz = Math.abs(d.Vfz || 0) / Math.max(z.Vr, 1e-9);
+        const urT = torsionRequired ? Math.abs(d.Tf || 0) / Math.max(Tr, 1e-9) : 0;
+        const urAvsY = y.reqAvs > 0 ? y.provAvs / y.reqAvs : Infinity;
+        const urAvsZ = z.reqAvs > 0 ? z.provAvs / z.reqAvs : Infinity;
+        const urAts = reqAts > 0 ? AtsProv / reqAts : Infinity;
+        const interaction = Math.max(urVy, urVz, urT, crushY, crushZ, spacingOK?0:2, combinedMinOKY?0:2, combinedMinOKZ?0:2);
+        const pass = urVy <= 1 && urVz <= 1 && urT <= 1 && crushY <= 1 && crushZ <= 1 && spacingOK && combinedMinOKY && combinedMinOKZ && (!!shearReinf.closedTies || !torsionRequired);
+        return { ...d, y, z, Tcr, Tr, torsionRequired, reqAts, AtsProv, thetaT, cotT, alphaT, torsionStress, stressLimit, crushY, crushZ, maxSpacingY, maxSpacingZ, spacingOK, combinedMinOKY, combinedMinOKZ, urVy, urVz, urT, urAvsY, urAvsZ, urAts, interaction, pass };
+      });
+      const governing = [...results].sort((a,b) => b.interaction - a.interaction)[0];
+      return { phic, phis, lambda, fcRoot, dY, dZ, bwY, bwZ, AvY, AvZ, AvsYProv, AvsZProv, minAvsY, minAvsZ, xoh, yoh, Aoh, Ao, ph, At, AtsProv, Acp, Pcp, Tcr, alphaT, maxSpacingBaseY, maxSpacingBaseZ, results, governing };
+    }
+
+    function ShearTorsionDiagram({ col, shearReinf, st }) {
+      if (!st) return null;
+      const W=760, H=250, ox=90, oy=42, sw=260, sh=150;
+      const scale = Math.min(sw/col.b, sh/col.h);
+      const bw=col.b*scale, bh=col.h*scale;
+      const x=ox+(sw-bw)/2, y=oy+(sh-bh)/2;
+      const ix=x+(col.cover+(REBAR[shearReinf.stirrupBar]?.dia||11.3)/2)*scale;
+      const iy=y+(col.cover+(REBAR[shearReinf.stirrupBar]?.dia||11.3)/2)*scale;
+      const iw=st.xo*scale, ih=st.yo*scale;
+      const bar=REBAR[shearReinf.stirrupBar]||REBAR["10M"];
+      return <div className="print-avoid print-diagram-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+        <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+          <div style={S.h2}>Figure: CSA Shear Reinforcement and Torsion Tube Model</div>
+          <div style={{ color:CLR.muted, fontSize:11 }}>Closed transverse reinforcement is modeled using the CSA thin-wall torsion tube idealization around the centreline of the outermost tie.</div>
+        </div>
+        <svg width={W} height={H} style={{ display:"block", margin:"0 auto" }}>
+          <rect x={x} y={y} width={bw} height={bh} fill="#21262d" stroke={CLR.accent} strokeWidth="2" />
+          <rect x={ix} y={iy} width={iw} height={ih} fill="none" stroke={CLR.teal} strokeWidth="3" />
+          <text x={x+bw/2} y={y-12} textAnchor="middle" fill={CLR.muted} fontSize="11">b = {col.b} mm</text>
+          <text x={x+bw+18} y={y+bh/2} fill={CLR.muted} fontSize="11">h = {col.h} mm</text>
+          <text x={410} y={70} fill={CLR.teal} fontSize="13" fontWeight="700">{shearReinf.closedTies?"Closed":"Open"} {shearReinf.stirrupBar} stirrup/tie</text>
+          <text x={410} y={95} fill={CLR.muted} fontSize="11">Aᵥ,y = {fmt0(st.AvY)} mm² @ s = {shearReinf.spacing} mm</text>
+          <text x={410} y={116} fill={CLR.muted} fontSize="11">Aᵥ,z = {fmt0(st.AvZ)} mm² @ s = {shearReinf.spacing} mm</text>
+          <text x={410} y={137} fill={CLR.muted} fontSize="11">Aₒ = {fmt0(st.Ao)} mm², Aₜ = {fmt0(st.At)} mm²</text>
+          <text x={410} y={158} fill={CLR.muted} fontSize="11">θ = {shearReinf.thetaDeg}°, cotθ = {fmt2(st.cotTheta)}</text>
+          <text x={410} y={184} fill={CLR.yellow} fontSize="10">CSA A23.3-24 shear/torsion capacity from inputted stirrups/ties only; no auto-design is performed.</text>
+        </svg>
+      </div>;
+    }
+
+    function ShearTorsionTable({ st }) {
+      if (!st) return null;
+      return <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+        <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+          <div style={S.h2}>V vs T Capacity Checks — CSA A23.3-24</div>
+          <div style={{ color:CLR.muted, fontSize:11 }}>Capacity check only: capacities are calculated from the inputted section geometry and transverse reinforcement, then each inputted shear/torsion demand is checked against those capacities. CSA detailing/minimum/spacing flags are still shown as code-compliance checks. Torsion is ignored only when Tf ≤ 0.25Tcr per CSA 11.2.9.</div>
+        </div>
+        <div style={{ overflowX:"auto" }}>
+          <table style={S.table}>
+            <thead><tr>{["LC","Vfy (kN)","Vry cap. (kN)","UR Vy","Av/s Y prov.","Vfz (kN)","Vrz cap. (kN)","UR Vz","Av/s Z prov.","Tf (kN·m)","Tcr (kN·m)","Tr cap. (kN·m)","UR T","Crush UR","Gov UR","Status"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
+            <tbody>{st.results.map((r,i)=><tr key={r.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}>
+              <td style={{ ...S.td, color:DEMAND_COLORS[i%DEMAND_COLORS.length], fontWeight:700 }}>{r.label}</td>
+              <td style={S.td}>{((r.Vfy||0)/1e3).toFixed(1)}</td>
+              <td style={{ ...S.td, color:CLR.teal }}>{(r.y.Vr/1e3).toFixed(1)}</td>
+              <td style={{ ...S.td, color:r.urVy<=1?CLR.green:CLR.red, fontWeight:700 }}>{fmt2(r.urVy)}</td>
+              <td style={S.td}>{fmt3(r.y.provAvs)}</td>
+              <td style={S.td}>{((r.Vfz||0)/1e3).toFixed(1)}</td>
+              <td style={{ ...S.td, color:CLR.teal }}>{(r.z.Vr/1e3).toFixed(1)}</td>
+              <td style={{ ...S.td, color:r.urVz<=1?CLR.green:CLR.red, fontWeight:700 }}>{fmt2(r.urVz)}</td>
+              <td style={S.td}>{fmt3(r.z.provAvs)}</td>
+              <td style={S.td}>{((r.Tf||0)/1e6).toFixed(1)}</td>
+              <td style={{ ...S.td, color:CLR.muted }}>{(r.Tcr/1e6).toFixed(1)}</td>
+              <td style={{ ...S.td, color:CLR.teal }}>{isFinite(r.Tr)?(r.Tr/1e6).toFixed(1):"Ignored"}</td>
+              <td style={{ ...S.td, color:r.urT<=1?CLR.green:CLR.red, fontWeight:700 }}>{fmt2(r.urT)}</td>
+              <td style={{ ...S.td, color:Math.max(r.crushY,r.crushZ)<=1?CLR.green:CLR.red, fontWeight:700 }}>{fmt2(Math.max(r.crushY,r.crushZ))}</td>
+              <td style={{ ...S.td, color:r.interaction<=1?CLR.green:CLR.red, fontWeight:800 }}>{fmt2(r.interaction)}</td>
+              <td style={S.td}><span style={S.badge(r.pass?CLR.green:CLR.red)}>{r.pass?"✓ OK":"✗ FAIL"}</span></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <div style={{ padding:"0.85rem 1.25rem", borderTop:`1px solid ${CLR.border}`, color:CLR.muted, fontSize:11, lineHeight:1.65 }}>
+          Formula trace: Vc = φc·λ·β·√f′c·bw·dv; Vs = φs·Av·fyv·dv·cotθ/s; Vr ≤ 0.25φc·f′c·bw·dv. Tcr = 0.38φc·λ·√f′c·Acp²/Pcp; Tr = 2Ao·At·φs·fyv·cotθ/s. Inputted transverse steel: Av/s,y = {fmt3(st.AvsYProv)} mm²/mm, Av/s,z = {fmt3(st.AvsZProv)} mm²/mm, At/s = {fmt3(st.AtsProv)} mm²/mm. Closed-tie torsion geometry: Aoh = {fmt0(st.Aoh)} mm², Ao = {fmt0(st.Ao)} mm², ph = {fmt0(st.ph)} mm.
+        </div>
+      </div>;
+    }
+
+    function DesignDashboard({ res, demandChecks, biaxialChecks, shearChecks }) {
+      if (!res || res.error) return null;
+      const flat = demandChecks.flatMap(d => d.axisChecks.map(c => ({ label:d.label, axis:c.axisTitle, ur:c.urM, Mf:c.Mf, Mr:c.Mry })));
+      const governingMoment = flat.sort((a,b) => (b.ur || 0) - (a.ur || 0))[0];
+      const governingP = [...demandChecks].sort((a,b) => b.urP - a.urP)[0];
+      const governingBiaxial = [...biaxialChecks].sort((a,b) => b.elliptical - a.elliptical)[0];
+      const governingShear = [...(shearChecks || [])].sort((a,b) => b.interaction - a.interaction)[0];
+      const maxUR = Math.max(governingMoment?.ur || 0, governingP?.urP || 0, (governingBiaxial?.ur3D ?? governingBiaxial?.elliptical) || 0, governingShear?.interaction || 0);
+      const pass = maxUR <= 1.0;
+      const cards = [
+        ["Overall status", pass ? "PASS" : "FAIL", pass ? CLR.green : CLR.red],
+        ["Governing load case", governingMoment?.label || governingP?.label || "—", CLR.accent],
+        ["Governing axis", governingMoment?.axis || "—", CLR.violet],
+        ["Max utilization", isFinite(maxUR) ? maxUR.toFixed(2) : "—", maxUR <= 1 ? CLR.green : CLR.red],
+        ["Max axial UR", governingP ? governingP.urP.toFixed(2) : "—", governingP?.urP <= 1 ? CLR.green : CLR.red],
+        ["3D biaxial UR", governingBiaxial ? ((governingBiaxial.ur3D ?? governingBiaxial.elliptical)).toFixed(2) : "—", (governingBiaxial?.ur3D ?? governingBiaxial?.elliptical) <= 1 ? CLR.green : CLR.red],
+        ["Shear/torsion UR", governingShear ? governingShear.interaction.toFixed(2) : "—", !governingShear || governingShear.interaction <= 1 ? CLR.green : CLR.red],
+        ["Balanced point", `${(res.balance.Pr/1e3).toFixed(0)} kN, ${(res.balance.Mr/1e6).toFixed(0)} kN·m`, CLR.yellow],
+        ["Curve resolution", `${res.curveIncrement} mm c-increment`, CLR.teal],
+      ];
+      return (
+        <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+          <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+            <div style={S.h2}>Capacity Check Dashboard — v0.7.10</div>
+          </div>
+          <div className="print-dashboard-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4, minmax(160px, 1fr))", gap:"0.75rem", padding:"1rem" }}>
+            {cards.map(([k,v,c],i) => (
+              <div key={i} className="print-dashboard-card" style={{ background:"#0d1117", border:`1px solid ${CLR.border}`, borderRadius:8, padding:"0.9rem" }}>
+                <div className="print-card-label" style={{ color:CLR.muted, fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 }}>{k}</div>
+                <div className="print-card-value" style={{ color:c, fontSize:16, fontWeight:800 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function ValidationPanel({ warnings }) {
+      if (!warnings || warnings.length === 0) {
+        return <div className="print-avoid" style={{ ...S.card, border:`1px solid ${CLR.green}`, padding:"0.9rem 1.1rem" }}><span style={S.badge(CLR.green)}>✓ No input warnings detected</span></div>;
+      }
+      return (
+        <div className="print-avoid" style={{ ...S.card, border:`1px solid ${warnings.some(w=>w.level==='error') ? CLR.red : CLR.yellow}`, padding:"0.9rem 1.1rem" }}> 
+          <div style={{ ...S.h2, color:warnings.some(w=>w.level==='error') ? CLR.red : CLR.yellow, marginBottom:"0.6rem" }}>Input Validation Warnings</div>
+          {warnings.map((w,i) => (
+            <div key={i} style={{ color:w.level==='error'?CLR.red:CLR.yellow, fontSize:12, lineHeight:1.8 }}>• {w.msg}</div>
+          ))}
+        </div>
+      );
+    }
+
+    function BiaxialCheckTable({ checks }) {
+      if (!checks || checks.length === 0) return null;
+      return (
+        <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+          <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+            <div style={S.h2}>Full 3D Biaxial Surface Check — My Strong Axis / Mz Weak Axis</div>
+            <div style={{ color:CLR.muted, fontSize:11 }}>Strain-compatible rotating neutral-axis surface check. My/Mz uniaxial ratios are still shown for reference.</div>
+          </div>
+          <div style={{ overflowX:"auto" }}>
+            <table style={S.table}>
+              <thead><tr>{["LC","Pf (kN)","Mfy/Mry","Mfz/Mrz","Linear sum","3D Surface UR","Status"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
+              <tbody>
+                {checks.map((c,i)=>(
+                  <tr key={c.id} style={{ background:i%2===0?"transparent":"#ffffff05" }}>
+                    <td style={{ ...S.td, color:DEMAND_COLORS[i%DEMAND_COLORS.length], fontWeight:700 }}>{c.label}</td>
+                    <td style={S.td}>{(c.Pf/1e3).toFixed(1)}</td>
+                    <td style={S.td}>{isFinite(c.urY)?c.urY.toFixed(2):"—"}</td>
+                    <td style={S.td}>{isFinite(c.urZ)?c.urZ.toFixed(2):"—"}</td>
+                    <td style={S.td}>{isFinite(c.linear)?c.linear.toFixed(2):"—"}</td>
+                    <td style={{ ...S.td, color:(c.ur3D ?? c.elliptical)<=1?CLR.green:CLR.red, fontWeight:700 }}>{isFinite(c.ur3D ?? c.elliptical)?(c.ur3D ?? c.elliptical).toFixed(2):"—"}</td>
+                    <td style={S.td}><span style={S.badge(c.pass3D?CLR.green:CLR.red)}>{c.pass3D?"✓ OK":"✗ FAIL"}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    function BiaxialSurfaceFigure({ allAxes, demands, surface3D }) {
+      if (!allAxes || allAxes.My?.error || allAxes.Mz?.error || !surface3D || surface3D.error) return null;
+      const W=820, H=420, ox=400, oy=245;
+      const maxMy = Math.max(...surface3D.points.map(p=>p.My || 0),1);
+      const maxMz = Math.max(...surface3D.points.map(p=>p.Mz || 0),1);
+      const minP = Math.min(...surface3D.points.map(p=>p.Pr));
+      const maxP = Math.max(...surface3D.points.map(p=>p.Pr));
+      const proj = (my,mz,p) => {
+        const x = ox + (my/maxMy)*210 - (mz/maxMz)*150;
+        const y = oy - ((p-minP)/(maxP-minP))*190 + (my/maxMy)*50 + (mz/maxMz)*42;
+        return [x,y];
+      };
+      const pLevels = [0.12,0.28,0.44,0.60,0.76,0.90];
+      const contours = pLevels.map(frac => {
+        const p = minP + frac*(maxP-minP);
+        const pts = surface3D.families.map(fam => interpolateFamilyAtP(fam.points, p)).filter(Boolean);
+        return pts.map((pt,i) => {
+          const [x,y] = proj(pt.My, pt.Mz, p);
+          return `${i?'L':'M'}${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+      }).filter(Boolean);
+      const meridians = surface3D.families.filter((_,i)=>i%6===0).map(fam => {
+        return fam.points.filter(pt => isFinite(pt.Pr) && isFinite(pt.My) && isFinite(pt.Mz)).map((pt,i)=>{
+          const [x,y]=proj(pt.My,pt.Mz,pt.Pr);
+          return `${i?'L':'M'}${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+      });
+      return (
+        <div className="design-report-exclude print-avoid print-diagram-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+          <div className="screen-only" style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+            <div style={S.h2}>Figure: Strain-Compatible P–My–Mz Interaction Surface</div>
+            <div style={{ color:CLR.muted, fontSize:11 }}>Rotating-neutral-axis biaxial analysis using concrete fiber integration and steel strain compatibility. Surface mesh: {surface3D.thetaCount} angles, {surface3D.cStep} mm c-step, {surface3D.fiberGrid} concrete fibers.</div>
+          </div>
+          <svg width={W} height={H} style={{ display:"block", margin:"0 auto" }}>
+            <line x1={ox} y1={oy+95} x2={ox+250} y2={oy+158} stroke={CLR.muted} strokeWidth="1.3" />
+            <line x1={ox} y1={oy+95} x2={ox-205} y2={oy+150} stroke={CLR.muted} strokeWidth="1.3" />
+            <line x1={ox} y1={oy+95} x2={ox} y2={oy-215} stroke={CLR.muted} strokeWidth="1.3" />
+            <text x={ox+260} y={oy+166} fill={CLR.muted} fontSize="11">My</text>
+            <text x={ox-225} y={oy+158} fill={CLR.muted} fontSize="11">Mz</text>
+            <text x={ox+8} y={oy-218} fill={CLR.muted} fontSize="11">P</text>
+            {contours.map((d,i)=><path key={`c${i}`} d={d} fill="none" stroke={CLR.accent} strokeWidth="1.4" opacity={0.40+i*0.08}/>) }
+            {meridians.map((d,i)=><path key={`m${i}`} d={d} fill="none" stroke={CLR.violet} strokeWidth="0.8" opacity="0.22"/>) }
+            {demands.map((d,i)=>{
+              const [x,y]=proj(d.Mfy||0,d.Mfz||0,d.Pf);
+              const color=DEMAND_COLORS[i%DEMAND_COLORS.length];
+              return <g key={d.id}><circle cx={x} cy={y} r="5" fill={color}/><text x={x+8} y={y-8} fill={color} fontSize="10">{d.label}</text></g>;
+            })}
+          </svg>
+        </div>
+      );
+    }
+
+    function csvSafe(value) {
+      if (value === null || value === undefined) return "";
+      if (typeof value === "number") return isFinite(value) ? String(value) : "";
+      const text = String(value).replace(/\r?\n/g, " ");
+      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    }
+
+    function buildCsvExport(col, layers, demands, res, demandChecks, biaxialChecks, shearReinf, shearChecks) {
+      const rows = [];
+      const addSection = title => { rows.push([]); rows.push([title]); };
+      const addRow = row => rows.push(row);
+
+      addRow(["Column Interaction v0.7.10 Results Export"]);
+      addRow(["Generated", new Date().toLocaleString()]);
+
+      addSection("Column Geometry and Materials");
+      addRow(["Parameter", "Value", "Unit"]);
+      addRow(["b", col.b, "mm"]);
+      addRow(["h", col.h, "mm"]);
+      addRow(["f'c", col.fc, "MPa"]);
+      addRow(["fy", col.fy, "MPa"]);
+      addRow(["Es", col.Es, "MPa"]);
+      addRow(["Cover to ties", col.cover, "mm"]);
+      addRow(["Tie bar", col.tieBar, ""]);
+      addRow(["Ag", res.Ag, "mm^2"]);
+      addRow(["Ast", res.Ast, "mm^2"]);
+      addRow(["alpha1", res.alpha1, ""]);
+      addRow(["beta1", res.beta1, ""]);
+      addRow(["epsilon_y", res.ey, ""]);
+      addRow(["c_bal", res.c_bal, "mm"]);
+      addRow(["Pro_comp", res.Pro_comp, "N"]);
+      addRow(["Pro_tens", res.Pro_tens, "N"]);
+
+      addSection("Reinforcement Layout");
+      addRow(["Layer", "Bar size", "d from compression face (mm)", "z coordinates (mm)", "No. bars", "Area per bar (mm^2)", "Layer Ast (mm^2)"]);
+      layers.forEach((l, i) => {
+        const rb = REBAR[l.barSize] || { area:0 };
+        const nBars = (l.zCoords || []).length;
+        addRow([i+1, l.barSize, l.dist, (l.zCoords || []).join("; "), nBars, rb.area, nBars * rb.area]);
+      });
+
+      addSection("Factored Load Demands");
+      addRow(["LC", "Pf (N)", "Pf (kN)", "Mfy (N.mm)", "Mfy (kN.m)", "Mfz (N.mm)", "Mfz (kN.m)", "Vfy (N)", "Vfz (N)", "Tf (N.mm)"]);
+      demands.forEach(d => addRow([d.label, d.Pf, d.Pf/1e3, d.Mfy || 0, (d.Mfy || 0)/1e6, d.Mfz || 0, (d.Mfz || 0)/1e6, d.Vfy || 0, d.Vfz || 0, d.Tf || 0]));
+
+      if (shearChecks && shearChecks.length && res.shearTorsion) {
+        addSection("V vs T Capacity Checks");
+        addRow(["LC", "Vfy (kN)", "Vry capacity (kN)", "UR Vy", "Vfz (kN)", "Vrz capacity (kN)", "UR Vz", "Tf (kN.m)", "Tr capacity (kN.m)", "UR T", "Governing UR", "Status"]);
+        shearChecks.forEach(c => addRow([c.label, (c.Vfy||0)/1e3, c.y.Vr/1e3, c.urVy, (c.Vfz||0)/1e3, c.z.Vr/1e3, c.urVz, (c.Tf||0)/1e6, isFinite(c.Tr) ? c.Tr/1e6 : "Ignored", c.urT, c.interaction, c.pass ? "OK" : "FAIL"]));
+      }
+
+      addSection("Demand Capacity Checks");
+      addRow(["LC", "Pf (kN)", "Pro_comp (kN)", "UR_P", "Axis", "Mf (kN.m)", "Mr at Pf (kN.m)", "UR_M", "Status"]);
+      demandChecks.forEach(d => {
+        d.axisChecks.forEach(c => {
+          addRow([d.label, d.Pf/1e3, res.Pr_maxLimit/1e3, d.urP, c.axisTitle, c.Mf/1e6, c.Mry/1e6, c.urM, d.pass ? "OK" : "FAIL"]);
+        });
+      });
+
+      addSection("Full 3D Biaxial Surface Checks");
+      addRow(["LC", "Pf (kN)", "Mfy/Mry", "Mfz/Mrz", "Linear sum", "3D surface UR", "Status"]);
+      biaxialChecks.forEach(c => addRow([c.label, c.Pf/1e3, c.urY, c.urZ, c.linear, c.ur3D ?? c.elliptical, c.pass3D ? "OK" : "FAIL"]));
+
+      addSection("Control Points - Primary Axis");
+      addRow(["Control point", "Point", "c (mm)", "a=beta1*c (mm)", "Cr (N)", "Sum Frs (N)", "Pr (N)", "Pr (kN)", "Mr (N.mm)", "Mr (kN.m)"]);
+      res.refPoints.forEach(pt => addRow([pt.label, pt.index, pt.c===Infinity ? "Infinity" : pt.c, pt.a, pt.Cr, pt.Frs_sum, pt.Pr, pt.Pr/1e3, pt.Mr, pt.Mr/1e6]));
+
+      addSection("Steel Bar State at Balance Point");
+      addRow(["Bar", "As (mm^2)", "d (mm)", "epsilon_s", "fs (MPa)", "phi_s*fs (MPa)", "Frs (N)"]);
+      res.bars.forEach((bar, i) => {
+        const es = 0.0035 * (1 - bar.d / res.c_bal);
+        const eps_y = col.fy / col.Es;
+        const fs = Math.abs(es) >= eps_y ? Math.sign(es) * col.fy : es * col.Es;
+        const Fs = 0.85 * fs * bar.As;
+        addRow([i+1, bar.As, bar.d, es, fs, 0.85 * fs, Fs]);
+      });
+
+      addSection("Interaction Curve - Primary Axis");
+      addRow(["Axis", "c (mm)", "Pr (N)", "Pr (kN)", "Mr (N.mm)", "Mr (kN.m)", "Label"]);
+      res.curvePoints.forEach(pt => addRow([res.axisTitle, pt.c===Infinity ? "Infinity" : pt.c, pt.Pr, pt.Pr/1e3, pt.Mr, pt.Mr/1e6, pt.label || ""]));
+
+      if (res.secondary) {
+        addSection("Interaction Curve - Secondary Axis");
+        addRow(["Axis", "c (mm)", "Pr (N)", "Pr (kN)", "Mr (N.mm)", "Mr (kN.m)", "Label"]);
+        res.secondary.curvePoints.forEach(pt => addRow([res.secondary.axisTitle, pt.c===Infinity ? "Infinity" : pt.c, pt.Pr, pt.Pr/1e3, pt.Mr, pt.Mr/1e6, pt.label || ""]));
+      }
+
+      return rows.map(row => row.map(csvSafe).join(",")).join("\n");
+    }
+
+    function downloadCsv(filename, csvText) {
+      const blob = new Blob([csvText], { type:"text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function buildReportWindow(col, layers, demands, res, demandChecks, biaxialChecks, shearChecks) {
+      const row = (a,b,c,d) => `<tr><td>${a}</td><td>${b}</td><td>${c||''}</td><td>${d||''}</td></tr>`;
+      const win = window.open('', '_blank');
+      const cp = res.refPoints.map(p => row(p.label, p.c===Infinity?'∞':fmt0(p.c), (p.Pr/1e3).toFixed(1)+' kN', (p.Mr/1e6).toFixed(2)+' kN·m')).join('');
+      const dc = demandChecks.map(d => row(d.label, (d.Pf/1e3).toFixed(1)+' kN', d.axisChecks.map(c=>c.axisTitle+': UR '+(isFinite(c.urM)?c.urM.toFixed(2):'—')).join('<br>'), d.pass?'OK':'FAIL')).join('');
+      win.document.write(`<!doctype html><html><head><title>Column Interaction v0.7.10 Report</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#111}h1,h2{color:#174ea6}table{border-collapse:collapse;width:100%;margin:12px 0 24px}td,th{border:1px solid #bbb;padding:6px 8px;text-align:left}th{background:#eee}.note{color:#555;font-size:12px}</style></head><body>`);
+      win.document.write(`<h1>Column Interaction v0.7.12 Calculation Report</h1><p class="note">Generated from the HTML app. Use browser Print → Save as PDF for a downloadable report.</p>`);
+      win.document.write(`<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>${row('b',col.b+' mm')}${row('h',col.h+' mm')}${row("f'c",col.fc+' MPa')}${row('fy',col.fy+' MPa')}${row('Es',col.Es+' MPa')}${row('Cover to ties',col.cover+' mm')}</table>`);
+      win.document.write(`<h2>Demand checks</h2><table><tr><th>LC</th><th>Pf</th><th>Moment checks</th><th>Status</th></tr>${dc}</table>`);
+      win.document.write(`<h2>Full 3D biaxial surface checks</h2><table><tr><th>LC</th><th>My UR</th><th>Mz UR</th><th>3D Surface UR</th></tr>${biaxialChecks.map(b=>row(b.label,b.urY.toFixed(2),b.urZ.toFixed(2),((b.ur3D ?? b.elliptical)).toFixed(2))).join('')}</table>`);
+      if (shearChecks && shearChecks.length) win.document.write(`<h2>Combined shear and torsion checks</h2><table><tr><th>LC</th><th>Vy UR</th><th>Vz UR</th><th>T UR</th><th>Combined UR</th></tr>${shearChecks.map(c=>row(c.label,c.urVy.toFixed(2),c.urVz.toFixed(2),c.urT.toFixed(2),c.interaction.toFixed(2))).join('')}</table>`);
+      win.document.write(`<h2>Control points</h2><table><tr><th>Point</th><th>c</th><th>Pr</th><th>Mr</th></tr>${cp}</table>`);
+      win.document.write(`<h2>CSA A23.3-24 theory references</h2><p>Resistance factors, stress block, balanced condition, compression-member resistance, shear, and torsion checks are labelled to CSA A23.3-24 clauses in the app theory tab.</p>`);
+      win.document.write(`</body></html>`);
+      win.document.close();
+      win.focus();
+    }
+
+    // ── APP ───────────────────────────────────────────────────────────────────────
+    function App() {
+      const [tab, setTab] = useState("inputs");
+      const [resultSubTab, setResultSubTab] = useState("pm");
+      const tabs = [
+        { id:"inputs",  label:"Inputs"  },
+        { id:"results", label:"Results" },
+        { id:"theory",  label:"Theory"  },
+      ];
+
+      const [col, setCol]     = useState(DEFAULT_COL);
+      const [bendingMode, setBendingMode] = useState("My");
+      const updateCol = (f, v) => setCol(p => ({ ...p, [f]: isNaN(+v) ? v : +v }));
+
+      const [layers, setLayers] = useState(DEFAULT_LAYERS);
+      const nextLayerId = useRef(DEFAULT_LAYERS.length + 1);
+
+      const addLayer = () => {
+        nextLayerId.current++;
+        const defaultZ = [Math.round(col.b * 0.15), Math.round(col.b * 0.85)];
+        setLayers(p => [...p, { id: nextLayerId.current, barSize:"20M", dist: Math.round(col.h/2), zCoords: defaultZ }]);
+      };
+      const delLayer = id => setLayers(p => p.filter(l => l.id !== id));
+      const updateLayer = (id, f, v) => setLayers(p => p.map(l => l.id===id ? {...l,[f]:v} : l));
+      // Edit z-coords as a comma-separated string, parse to array of numbers
+      const updateZCoords = (id, raw) => {
+        const parsed = raw.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+        updateLayer(id, "zCoords", parsed);
+      };
+
+      const generatePerimeterLayout = (nBars, barSize="30M") => {
+        const rb = REBAR[barSize] || REBAR["30M"];
+        const tieDia = REBAR[col.tieBar]?.dia || 11.3;
+        const inset = Math.round(col.cover + tieDia + rb.dia/2);
+        const left = inset, right = Math.round(col.b - inset), top = inset, bottom = Math.round(col.h - inset);
+        const bars = [];
+        if (nBars <= 4) {
+          bars.push([left,top],[right,top],[left,bottom],[right,bottom]);
+        } else {
+          const perSide = Math.max(2, Math.ceil(nBars/4)+1);
+          for (let i=0;i<perSide;i++) {
+            const t = i/(perSide-1);
+            bars.push([Math.round(left + t*(right-left)), top]);
+            bars.push([Math.round(left + t*(right-left)), bottom]);
+          }
+          for (let i=1;i<perSide-1;i++) {
+            const t = i/(perSide-1);
+            bars.push([left, Math.round(top + t*(bottom-top))]);
+            bars.push([right, Math.round(top + t*(bottom-top))]);
+          }
+        }
+        const unique = [];
+        bars.forEach(([z,d]) => { if (!unique.some(p => p[0]===z && p[1]===d)) unique.push([z,d]); });
+        const selected = unique.slice(0, nBars).sort((a,bv) => a[1]-bv[1] || a[0]-bv[0]);
+        const groups = {};
+        selected.forEach(([z,d]) => { groups[d] = groups[d] || []; groups[d].push(z); });
+        let id = 1;
+        setLayers(Object.entries(groups).map(([d,zCoords]) => ({ id:id++, barSize, dist:+d, zCoords:zCoords.sort((a,bv)=>a-bv) })));
+        nextLayerId.current = id;
+      };
+
+      // Demands — multi-row
+      const [demands, setDemands] = useState(DEFAULT_DEMANDS);
+      const nextDemandId = useRef(DEFAULT_DEMANDS.length + 1);
+      const addDemand = () => {
+        nextDemandId.current++;
+        setDemands(p => [...p, { id: nextDemandId.current, label:`LC${nextDemandId.current}`, Pf:1000000, Mfz:150000000, Mfy:150000000, Vfy:120000, Vfz:80000, Tf:25000000 }]);
+      };
+      const delDemand = id => setDemands(p => p.filter(d => d.id !== id));
+      const updateDemand = (id, f, v) => setDemands(p => p.map(d => d.id===id ? {...d,[f]: f==="label"?v:+v} : d));
+
+      const [shearReinf, setShearReinf] = useState(DEFAULT_SHEAR_REINF);
+      const updateShearReinf = (f, v) => setShearReinf(p => ({ ...p, [f]: (f === "closedTies" || f === "enabled" || f === "considerTorsion") ? !!v : (isNaN(+v) ? v : +v) }));
+
+      const [res, setRes] = useState(null);
+
+      const analyze = () => {
+        const my = solveInteraction(col, layers, "My");
+        const mz = solveInteraction(col, layers, "Mz");
+        const surface3D = solveBiaxialSurface(col, layers);
+        const shearTorsion = shearReinf.enabled ? calcShearTorsion(col, layers, demands, shearReinf) : null;
+        const primary = bendingMode === "Mz" ? mz : my;
+        if (bendingMode === "Both") primary.secondary = mz;
+        primary.bendingMode = bendingMode;
+        primary.allAxes = { My: my, Mz: mz };
+        primary.surface3D = surface3D;
+        primary.shearTorsion = shearTorsion;
+        setRes(primary);
+        setTab("results");
+      };
+
+      const hasResult = res && !res.error;
+
+      // Per-demand checks for the selected bending axis/axes.
+      const displayedResults = hasResult ? [res].concat(res.secondary ? [res.secondary] : []) : [];
+      const demandChecks = hasResult ? demands.map(d => {
+        const axisChecks = displayedResults.map(r => {
+          const Mf = d[r.momentDemandKey] || 0;
+          const Mry = interpMr(r.curvePoints, d.Pf);
+          const urM = Mry > 0 ? Mf / Mry : Infinity;
+          return { axis:r.axis, axisTitle:r.axisTitle, Mf, Mry, urM };
+        });
+        const urP = d.Pf / res.Pr_maxLimit;
+        const pass = urP <= 1.0 && axisChecks.every(c => c.urM <= 1.0);
+        return { ...d, urP, axisChecks, pass };
+      }) : [];
+      const validationWarnings = getValidationWarnings(col, layers, demands, hasResult ? res : null);
+      if (col.fc < 20 || col.fc > 80) validationWarnings.push({ level:"warn", msg:"CSA A23.3-24 material range warning: f′c should normally be between 20 MPa and 80 MPa for frame design. Values outside this range require special verification." });
+      if (col.fy > 500) validationWarnings.push({ level:"warn", msg:"CSA A23.3-24 material range warning: longitudinal fy should normally not exceed 500 MPa for this frame-design workflow." });
+      if (shearReinf.fyv > 500) validationWarnings.push({ level:"warn", msg:"CSA A23.3-24 material range warning: transverse reinforcement fyv above 500 MPa requires careful code/detailing verification." });
+      if (shearReinf.enabled) {
+        if (!shearReinf.closedTies && demands.some(d => Math.abs(d.Tf || 0) > 0)) validationWarnings.push({ level:"error", msg:"Torsion demand is present but closed ties are disabled." });
+        if ((+shearReinf.spacing || 0) <= 0) validationWarnings.push({ level:"error", msg:"Shear reinforcement spacing must be greater than zero." });
+        if ((+shearReinf.thetaDeg || 0) < 22 || (+shearReinf.thetaDeg || 0) > 45) validationWarnings.push({ level:"warn", msg:"θ must stay in the CSA shear/torsion design range used by this app: 22° to 45°." });
+      }
+      const biaxialChecks = hasResult ? getAllAxisChecks(demands, res.allAxes, res.surface3D) : [];
+      const shearChecks = hasResult ? (res.shearTorsion?.results || []) : [];
+
+      const exportCsv = () => {
+        if (!hasResult) return;
+        const csv = buildCsvExport(col, layers, demands, res, demandChecks, biaxialChecks, shearReinf, shearChecks);
+        const stamp = new Date().toISOString().slice(0,10);
+        downloadCsv(`column_interaction_v0_7_9_results_${stamp}.csv`, csv);
+      };
+
+      return (
+        <div style={S.app}>
+          {/* ── HEADER ── */}
+          <header style={S.header}>
+            <div>
+              <div style={{ fontSize:18, fontWeight:800, color:CLR.accent, letterSpacing:"0.05em" }}>Column Interaction v0.7.10</div>
+              <div style={{ fontSize:10, color:CLR.muted, letterSpacing:"0.1em" }}>P–My / P–Mz + SHEAR / TORSION CAPACITY CHECK · CSA A23.3-24</div>
+            </div>
+            <nav style={S.nav}>
+              {tabs.map(t => (
+                <button key={t.id} style={S.navBtn(tab===t.id)} onClick={() => setTab(t.id)}>
+                  {t.label}
+                  {t.id==="results" && hasResult && (
+                    <span style={{ marginLeft:6, ...S.badge(CLR.green), fontSize:9, padding:"1px 5px" }}>✓</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </header>
+
+          <main style={S.main}>
+
+            {/* ═══ THEORY TAB ═══ */}
+            {tab === "theory" && <TheoryView />}
+
+            {/* ═══ INPUTS TAB ═══ */}
+            {tab === "inputs" && (
+              <div>
+                <div style={{ display:"flex", alignItems:"center", marginBottom:"1.5rem" }}>
+                  <div style={{ fontSize:20, fontWeight:800 }}>Column Properties &amp; Reinforcement</div>
+                  <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"0.75rem" }}>
+                    <label style={{ fontSize:12, color:CLR.muted, fontWeight:700 }}>Bending axis</label>
+                    <select style={{ width:230, minWidth:230 }} value={bendingMode} onChange={e => setBendingMode(e.target.value)}>
+                      <option value="My">P–My (Strong Axis)</option>
+                      <option value="Mz">P–Mz (Weak Axis)</option>
+                      <option value="Both">Both</option>
+                    </select>
+                    <button style={{ ...S.btn("primary"), padding:"8px 24px", fontSize:13 }} onClick={analyze}>
+                      ▶ Run P-M-V-T Capacity Check
+                    </button>
+                  </div>
+                </div>
+
+                <ValidationPanel warnings={validationWarnings} />
+
+                {/* Row 1: Properties + Section Preview side by side */}
+                <div style={{ display:"grid", gridTemplateColumns:"430px 1fr", gap:"1.5rem", marginBottom:"1.5rem", alignItems:"start" }}>
+
+                  {/* Column geometry & materials */}
+                  <div style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:0 }}>
+                    <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                      <div style={S.h2}>Table 1: Column Geometry &amp; Materials</div>
+                    </div>
+                    <table style={S.table}>
+                      <tbody>
+                        {[
+                          ["b — Width (mm)",          "b",     col.b   ],
+                          ["h — Height (mm)",         "h",     col.h   ],
+                          ["f′c (MPa) · CSA 8.6.1",               "fc",    col.fc  ],
+                          ["fy (MPa) · CSA 8.5.1",                "fy",    col.fy  ],
+                          ["Es (MPa) · CSA 8.5.4",                "Es",    col.Es  ],
+                          ["Cover to ties (mm) · CSA 7.9",      "cover", col.cover],
+                        ].map(([label, field, val]) => (
+                          <tr key={field}>
+                            <td style={{ ...S.td, textAlign:"left", paddingLeft:14, fontSize:11, whiteSpace:"nowrap" }}>{label}</td>
+                            <td style={S.td}><input type="number" style={S.input} value={val} onChange={e => updateCol(field, e.target.value)} /></td>
+                          </tr>
+                        ))}
+                        <tr>
+                          <td style={{ ...S.td, textAlign:"left", paddingLeft:14, fontSize:11, whiteSpace:"nowrap" }}>Tie Bar Size · CSA 7.6.5</td>
+                          <td style={S.td}>
+                            <select value={col.tieBar} onChange={e => updateCol("tieBar", e.target.value)}>
+                              {Object.keys(REBAR).map(k => <option key={k} value={k}>{k}</option>)}
+                            </select>
+                          </td>
+                        </tr>
+                        {[
+                          ["α₁", Math.max(0.67, 0.85 - 0.0015*col.fc).toFixed(4)],
+                          ["β₁", Math.max(0.67, 0.97 - 0.0025*col.fc).toFixed(4)],
+                          ["Ag (mm²)", (col.b*col.h).toFixed(0)],
+                        ].map(([lbl, val]) => (
+                          <tr key={lbl} style={{ background:"#21262d" }}>
+                            <td style={{ ...S.td, textAlign:"left", paddingLeft:14, color:CLR.muted, fontSize:11 }}>{lbl}</td>
+                            <td style={{ ...S.td, color:CLR.teal }}>{val}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Section preview — right column */}
+                  <div style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:0 }}>
+                    <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                      <div style={S.h2}>Section Preview — Bar Coordinates (d, z)</div>
+                    </div>
+                    <ColumnDiagram col={col} layers={layers} shearReinf={shearReinf} />
+                  </div>
+                </div>
+
+                <div style={{ ...S.card, padding:"1rem 1.25rem", marginBottom:"1.5rem" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", flexWrap:"wrap" }}>
+                    <div style={{ ...S.h2, marginBottom:0 }}>Reinforcement Layout Generator</div>
+                    <span style={{ color:CLR.muted, fontSize:11 }}>Auto-generate common perimeter bar layouts using 30M bars and current cover/tie inputs.</span>
+                    {[4,8,12,16].map(n => (
+                      <button key={n} style={{ ...S.btn("ghost"), padding:"5px 12px", fontSize:11 }} onClick={() => generatePerimeterLayout(n, "30M")}>{n} bars</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Row 2: Reinforcement layer table */}
+                <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+                  <div style={{ display:"flex", alignItems:"center", padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                    <div style={S.h2}>Table 2: Reinforcement Layers (My strong axis / Mz weak axis)</div>
+                    <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 14px", fontSize:11 }} onClick={addLayer}>+ Add Layer</button>
+                  </div>
+                  <div style={{ overflowX:"auto" }}>
+                    <table style={S.table}>
+                      <thead>
+                        <tr>
+                          <th style={S.th}>#</th>
+                          <th style={S.th}>Bar Size</th>
+                          <th style={S.th}>Ø (mm)</th>
+                          <th style={S.th}>Area/bar (mm²)</th>
+                          <th style={S.th}>d — dist from comp. face (mm)</th>
+                          <th style={S.th}>z-coords (mm, comma-sep)</th>
+                          <th style={S.th}>No. Bars</th>
+                          <th style={S.th}>Layer Ast (mm²)</th>
+                          <th style={S.th}>—</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {layers.map((l, i) => {
+                          const rb    = REBAR[l.barSize] || { dia:0, area:0 };
+                          const nBars = l.zCoords ? l.zCoords.length : 0;
+                          return (
+                            <tr key={l.id} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                              <td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{i+1}</td>
+                              <td style={S.td}>
+                                <select value={l.barSize} onChange={e => updateLayer(l.id,"barSize",e.target.value)}>
+                                  {Object.keys(REBAR).map(k => <option key={k} value={k}>{k}</option>)}
+                                </select>
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{rb.dia}</td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{rb.area}</td>
+                              <td style={S.td}>
+                                <input style={S.input} type="number" min={0} value={l.dist}
+                                       onChange={e => updateLayer(l.id,"dist",+e.target.value)} />
+                              </td>
+                              <td style={S.td}>
+                                <input style={{ ...S.input, width:180 }}
+                                       value={(l.zCoords||[]).join(", ")}
+                                       placeholder="e.g. 70, 250, 430"
+                                       onChange={e => updateZCoords(l.id, e.target.value)} />
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{nBars}</td>
+                              <td style={{ ...S.td, color:CLR.orange, fontWeight:700 }}>
+                                {(nBars * rb.area).toFixed(0)}
+                              </td>
+                              <td style={S.td}>
+                                <button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }}
+                                        onClick={() => delLayer(l.id)}>✕</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ background:"#21262d" }}>
+                          <td colSpan={7} style={{ ...S.td, textAlign:"right", fontWeight:700, color:CLR.muted }}>
+                            TOTAL Ast (mm²)
+                          </td>
+                          <td style={{ ...S.td, color:CLR.teal, fontWeight:700 }}>
+                            {layers.reduce((s,l) => {
+                              const rb = REBAR[l.barSize] || { area:0 };
+                              return s + (l.zCoords||[]).length * rb.area;
+                            }, 0).toFixed(0)}
+                          </td>
+                          <td style={S.td}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+
+
+                {/* Row 3: Shear / torsion reinforcement input table */}
+                <div style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                  <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                    <div style={S.h2}>Table 3: Inputted Shear Reinforcement / Torsion Reinforcement</div>
+                    <div style={{ color:CLR.muted, fontSize:11 }}>Input the actual transverse reinforcement in the column. The app does not auto-design or resize stirrups; it calculates the shear/torsion capacity from the inputted reinforcement and checks every inputted Vfy, Vfz, and Tf load case against that capacity.</div>
+                  </div>
+                  <div style={{ overflowX:"auto" }}>
+                    <table style={S.table}>
+                      <tbody>
+                        <tr>
+                          <td style={{ ...S.td, textAlign:"left", fontWeight:700 }}>Enable shear/torsion check</td>
+                          <td style={S.td}><input type="checkbox" checked={shearReinf.enabled} onChange={e=>updateShearReinf("enabled", e.target.checked)} /></td>
+                          <td style={{ ...S.td, textAlign:"left", fontWeight:700 }}>Closed ties for torsion</td>
+                          <td style={S.td}><input type="checkbox" checked={shearReinf.closedTies} onChange={e=>updateShearReinf("closedTies", e.target.checked)} /></td>
+                          <td style={{ ...S.td, textAlign:"left", fontWeight:700 }}>Consider torsion per CSA 11.2.9</td>
+                          <td style={S.td}><input type="checkbox" checked={shearReinf.considerTorsion} onChange={e=>updateShearReinf("considerTorsion", e.target.checked)} /></td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...S.td, textAlign:"left" }}>Stirrup / tie bar</td>
+                          <td style={S.td}><select value={shearReinf.stirrupBar} onChange={e=>updateShearReinf("stirrupBar", e.target.value)}>{Object.keys(REBAR).map(k=><option key={k} value={k}>{k}</option>)}</select></td>
+                          <td style={{ ...S.td, textAlign:"left" }}>fyv (MPa)</td>
+                          <td style={S.td}><input style={S.input} type="number" value={shearReinf.fyv} onChange={e=>updateShearReinf("fyv", e.target.value)} /></td>
+                          <td style={{ ...S.td, textAlign:"left" }}>spacing s (mm)</td>
+                          <td style={S.td}><input style={S.input} type="number" value={shearReinf.spacing} onChange={e=>updateShearReinf("spacing", e.target.value)} /></td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...S.td, textAlign:"left" }}>Vy legs</td>
+                          <td style={S.td}><input style={S.input} type="number" value={shearReinf.legsY} onChange={e=>updateShearReinf("legsY", e.target.value)} /></td>
+                          <td style={{ ...S.td, textAlign:"left" }}>Vz legs</td>
+                          <td style={S.td}><input style={S.input} type="number" value={shearReinf.legsZ} onChange={e=>updateShearReinf("legsZ", e.target.value)} /></td>
+                          <td style={{ ...S.td, textAlign:"left" }}>θ (deg)</td>
+                          <td style={S.td}><input style={S.input} type="number" min="22" max="45" value={shearReinf.thetaDeg} onChange={e=>updateShearReinf("thetaDeg", e.target.value)} /></td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...S.td, textAlign:"left" }}>β override (0 = auto)</td>
+                          <td style={S.td}><input style={S.input} type="number" step="0.01" value={shearReinf.betaOverride} onChange={e=>updateShearReinf("betaOverride", e.target.value)} /></td>
+                          <td style={{ ...S.td, textAlign:"left" }}>User max spacing (mm)</td>
+                          <td style={S.td}><input style={S.input} type="number" value={shearReinf.maxSpacing} onChange={e=>updateShearReinf("maxSpacing", e.target.value)} /></td>
+                          <td style={{ ...S.td, textAlign:"left" }}>λ density factor</td>
+                          <td style={S.td}><input style={S.input} type="number" step="0.05" min="0.75" max="1" value={shearReinf.lambda} onChange={e=>updateShearReinf("lambda", e.target.value)} /></td>
+                        </tr>
+                        <tr>
+                          <td style={{ ...S.td, textAlign:"left" }}>Aggregate size ag (mm)</td>
+                          <td style={S.td}><input style={S.input} type="number" value={shearReinf.aggregateSize} onChange={e=>updateShearReinf("aggregateSize", e.target.value)} /></td>
+                          <td style={{ ...S.td, textAlign:"left" }}>Torsion tie c/l cover (mm)</td>
+                          <td style={S.td}><input style={S.input} type="number" value={shearReinf.torsionCenterlineCover} onChange={e=>updateShearReinf("torsionCenterlineCover", e.target.value)} /></td>
+                          <td style={{ ...S.td, color:CLR.muted }} colSpan="2">{shearReinf.stirrupBar} area = {REBAR[shearReinf.stirrupBar]?.area || 0} mm²/bar</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Row 4: Demands table */}
+                <div style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                  <div style={{ display:"flex", alignItems:"center", padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                    <div style={S.h2}>Table 4: Factored Load Demands (Pf, Mfy, Mfz, Vfy, Vfz, Tf)</div>
+                    <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"4px 14px", fontSize:11 }} onClick={addDemand}>+ Add Load Case</button>
+                  </div>
+                  <div style={{ overflowX:"auto" }}>
+                    <table style={S.table}>
+                      <thead>
+                        <tr>
+                          <th style={S.th}>ID</th>
+                          <th style={S.th}>Label</th>
+                          <th style={S.th}>Pf (N)</th>
+                          <th style={S.th}>Pf (kN)</th>
+                          <th style={S.th}>Mfz (N·mm)</th>
+                          <th style={S.th}>Mfz (kN·m)</th>
+                          <th style={S.th}>Mfy (N·mm)</th>
+                          <th style={S.th}>Mfy (kN·m)</th>
+                          <th style={S.th}>Vfy (N)</th>
+                          <th style={S.th}>Vfy (kN)</th>
+                          <th style={S.th}>Vfz (N)</th>
+                          <th style={S.th}>Vfz (kN)</th>
+                          <th style={S.th}>Tf (N·mm)</th>
+                          <th style={S.th}>Tf (kN·m)</th>
+                          <th style={S.th}>Color</th>
+                          <th style={S.th}>—</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {demands.map((d, i) => {
+                          const color = DEMAND_COLORS[i % DEMAND_COLORS.length];
+                          return (
+                            <tr key={d.id} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                              <td style={{ ...S.td, color:CLR.muted }}>{i+1}</td>
+                              <td style={S.td}>
+                                <input style={{ ...S.input, width:70 }} value={d.label}
+                                       onChange={e => updateDemand(d.id,"label",e.target.value)} />
+                              </td>
+                              <td style={S.td}>
+                                <input style={S.input} type="number" value={d.Pf}
+                                       onChange={e => updateDemand(d.id,"Pf",e.target.value)} />
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{(d.Pf/1e3).toFixed(1)}</td>
+                              <td style={S.td}>
+                                <input style={S.input} type="number" value={d.Mfz || 0}
+                                       onChange={e => updateDemand(d.id,"Mfz",e.target.value)} />
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{((d.Mfz || 0)/1e6).toFixed(1)}</td>
+                              <td style={S.td}>
+                                <input style={S.input} type="number" value={d.Mfy}
+                                       onChange={e => updateDemand(d.id,"Mfy",e.target.value)} />
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{(d.Mfy/1e6).toFixed(1)}</td>
+                              <td style={S.td}>
+                                <input style={S.input} type="number" value={d.Vfy || 0}
+                                       onChange={e => updateDemand(d.id,"Vfy",e.target.value)} />
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{((d.Vfy || 0)/1e3).toFixed(1)}</td>
+                              <td style={S.td}>
+                                <input style={S.input} type="number" value={d.Vfz || 0}
+                                       onChange={e => updateDemand(d.id,"Vfz",e.target.value)} />
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{((d.Vfz || 0)/1e3).toFixed(1)}</td>
+                              <td style={S.td}>
+                                <input style={S.input} type="number" value={d.Tf || 0}
+                                       onChange={e => updateDemand(d.id,"Tf",e.target.value)} />
+                              </td>
+                              <td style={{ ...S.td, color:CLR.muted }}>{((d.Tf || 0)/1e6).toFixed(1)}</td>
+                              <td style={S.td}>
+                                <div style={{ width:22, height:14, borderRadius:3, background:color, margin:"0 auto",
+                                             border:`1px solid ${color}` }} />
+                              </td>
+                              <td style={S.td}>
+                                <button style={{ ...S.btn("danger"), padding:"3px 8px", fontSize:10 }}
+                                        onClick={() => delDemand(d.id)}>✕</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* ═══ RESULTS TAB ═══ */}
+            {tab === "results" && (
+              <div>
+                {res?.error && (
+                  <div style={{ ...S.card, border:`1px solid ${CLR.red}`, marginBottom:"1.5rem" }}>
+                    <div style={{ color:CLR.red, fontWeight:700 }}>Error: {res.error}</div>
+                  </div>
+                )}
+
+                {hasResult && (
+                  <div className="report-results-block">
+                    <div className="print-report-header">
+                      <h1>Column Interaction v0.7.12 Calculation Report</h1>
+                      <div className="meta">
+                        CSA A23.3-24 reinforced concrete column P–My / P–Mz and V–T capacity check<br/>
+                        Section: b = {col.b} mm, h = {col.h} mm · f′c = {col.fc} MPa · fy = {col.fy} MPa · Generated: {new Date().toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="screen-only" style={{ display:"flex", justifyContent:"flex-end", gap:"0.75rem", marginBottom:"1rem", flexWrap:"wrap" }}>
+                      <button style={S.btn("ghost")} onClick={() => window.print()}>Open Full PDF Report</button>
+                      <button style={S.btn("ghost")} onClick={exportCsv}>Export Results CSV</button>
+                      <button style={S.btn("primary")} onClick={() => window.print()}>Print / Save PDF Report</button>
+                    </div>
+                    <DesignDashboard res={res} demandChecks={demandChecks} biaxialChecks={biaxialChecks} shearChecks={shearChecks} />
+                    <ValidationPanel warnings={validationWarnings} />
+
+                    <div className="screen-only" style={{ ...S.card, padding:"0.75rem", display:"flex", gap:"0.75rem", alignItems:"center", flexWrap:"wrap", marginBottom:"1.5rem" }}>
+                      <button
+                        style={{ ...S.btn(resultSubTab === "pm" ? "primary" : "ghost"), minWidth:170 }}
+                        onClick={() => setResultSubTab("pm")}
+                      >
+                        P vs M Results
+                      </button>
+                      <button
+                        style={{ ...S.btn(resultSubTab === "vt" ? "primary" : "ghost"), minWidth:170 }}
+                        onClick={() => setResultSubTab("vt")}
+                      >
+                        V vs T Results
+                      </button>
+                      <span style={{ color:CLR.muted, fontSize:11 }}>V–T tab checks inputted loads against the capacity of the inputted shear/torsion reinforcement.</span>
+                    </div>
+
+                    <div className="report-results-subtab report-results-subtab-pm" style={{ display: resultSubTab === "pm" ? "block" : "none" }}>
+                      <div className="print-only print-section-title">P vs M Results</div>
+                    {/* ── Figure 1: Interaction Diagram — full width ── */}
+                    <div className="design-report-exclude print-avoid print-diagram-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                      <div className="screen-only" style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                        <div style={S.h2}>Figure 1: {res.axisTitle} Interaction Diagram — CSA A23.3-24 Cl. 10.1 / 10.10</div>
+                      </div>
+                      <div style={{ padding:"1.5rem", overflowX:"auto" }}>
+                        <InteractionDiagram res={res} demands={demands} />
+                      </div>
+                    </div>
+
+                    {res.secondary && (
+                      <div className="design-report-exclude print-avoid print-diagram-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                        <div className="screen-only" style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                          <div style={S.h2}>Figure 2: {res.secondary.axisTitle} Interaction Diagram — CSA A23.3-24 Cl. 10.1 / 10.10</div>
+                        </div>
+                        <div style={{ padding:"1.5rem", overflowX:"auto" }}>
+                          <InteractionDiagram res={res.secondary} demands={demands} />
+                        </div>
+                      </div>
+                    )}
+
+                    <BiaxialSurfaceFigure allAxes={res.allAxes} demands={demands} surface3D={res.surface3D} />
+
+                    {/* ── Table 1: Demand summary ── */}
+                    <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                      <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                        <div style={S.h2}>Table 1: Demand Capacity Checks — ULS per CSA A23.3-24 Cl. 8.1.3</div>
+                      </div>
+                      <div style={{ overflowX:"auto" }}>
+                        <table style={S.table}>
+                          <thead>
+                            <tr>
+                              <th style={S.th}>LC</th>
+                              <th style={S.th}>Pf (kN)</th>
+                              <th style={S.th}>Pro_comp (kN)</th>
+                              <th style={S.th}>UR_P</th>
+                              <th style={S.th}>Axis</th>
+                              <th style={S.th}>Mf (kN·m)</th>
+                              <th style={S.th}>Mr @ Pf (kN·m)</th>
+                              <th style={S.th}>UR_M</th>
+                              <th style={S.th}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {demandChecks.map((d, i) => {
+                              const color = DEMAND_COLORS[i % DEMAND_COLORS.length];
+                              return (
+                                <tr key={d.id} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                                  <td style={{ ...S.td, color, fontWeight:700 }}>{d.label}</td>
+                                  <td style={S.td}>{(d.Pf/1e3).toFixed(1)}</td>
+                                  <td style={{ ...S.td, color:CLR.teal }}>{(res.Pr_maxLimit/1e3).toFixed(1)}</td>
+                                  <td style={{ ...S.td, color: d.urP<=1?CLR.green:CLR.red, fontWeight:700 }}>{fmt2(d.urP)}</td>
+                                  <td style={S.td}>{d.axisChecks.map(c => c.axisTitle).join(" / ")}</td>
+                                  <td style={S.td}>{d.axisChecks.map(c => (c.Mf/1e6).toFixed(1)).join(" / ")}</td>
+                                  <td style={{ ...S.td, color:CLR.teal }}>{d.axisChecks.map(c => (c.Mry/1e6).toFixed(1)).join(" / ")}</td>
+                                  <td style={{ ...S.td, color: d.axisChecks.every(c => c.urM<=1)?CLR.green:CLR.red, fontWeight:700 }}>{d.axisChecks.map(c => isFinite(c.urM)?fmt2(c.urM):"—").join(" / ")}</td>
+                                  <td style={S.td}>
+                                    <span style={S.badge(d.pass ? CLR.green : CLR.red)}>
+                                      {d.pass ? "✓ OK" : "✗ FAIL"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <BiaxialCheckTable checks={biaxialChecks} />
+
+                    {/* ── Table 2: Section properties ── */}
+                    <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                      <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                        <div style={S.h2}>Table 2: Section Properties &amp; Stress Block Parameters</div>
+                      </div>
+                      <div style={{ overflowX:"auto" }}>
+                        <table style={S.table}>
+                          <thead>
+                            <tr>
+                              {["Parameter","Symbol","Value","Unit","Clause"].map(h => (
+                                <th key={h} style={S.th}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              ["Gross Area",        "Ag",         fmt0(res.Ag),           "mm²",  "CSA notation Cl. 3.2"],
+                              ["Total Steel Area",  "Ast",        fmt0(res.Ast),           "mm²",  "CSA notation Cl. 3.2"],
+                              ["Steel Ratio",       "ρ=Ast/Ag",   (res.Ast/res.Ag*100).toFixed(2)+"%", "—", "Cl. 10.9.1"],
+                              ["Stress Block α₁",  "α₁",         fmt3(res.alpha1),         "—",    "Cl. 10.1.7(a)"],
+                              ["Stress Block β₁",  "β₁",         fmt3(res.beta1),          "—",    "Cl. 10.1.7(b)"],
+                              ["Crushing Strain",  "ε_cu",       "0.0035",                 "—",    "Cl. 10.1.3"],
+                              ["Yield Strain",     "ε_y=fy/Es",  res.ey.toFixed(5),        "—",    "Cl. 8.5.3, 8.5.4"],
+                              ["Balance Point c",  "c_bal",      fmt0(res.c_bal),          "mm",   "Cl. 10.1.4"],
+                              ["Pure Compression",   "Pro_comp",    fmt0(res.Pro_comp),       "N",    "Cl. 10.10"],
+                              ["Pure Tension",     "−Tr",        fmt0(res.Ast * 0.85 * col.fy), "N", "Cl. 8.4.3, 8.5.1"],
+                            ].map(([name,sym,val,unit,cl],i) => (
+                              <tr key={i} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                                <td style={{ ...S.td, textAlign:"left" }}>{name}</td>
+                                <td style={{ ...S.td, color:CLR.accent }}>{sym}</td>
+                                <td style={{ ...S.td, color:CLR.teal, fontWeight:700 }}>{val}</td>
+                                <td style={{ ...S.td, color:CLR.muted }}>{unit}</td>
+                                <td style={{ ...S.td, color:CLR.muted, fontSize:10 }}>{cl}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* ── Table 3: P–My reference points ── */}
+                    <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                      <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                        <div style={S.h2}>Table 3: Control Points — {res.axisTitle} Interaction Diagram</div>
+                      </div>
+                      <div style={{ overflowX:"auto" }}>
+                        <table style={S.table}>
+                          <thead>
+                            <tr>
+                              <th style={S.th}>Control Point</th>
+                              <th style={S.th}>Pt</th>
+                              <th style={S.th}>c (mm)</th>
+                              <th style={S.th}>a=β₁c (mm)</th>
+                              <th style={S.th}>Cr (N)</th>
+                              <th style={S.th}>ΣFrs (N)</th>
+                              <th style={S.th}>Pr (N)</th>
+                              <th style={S.th}>Pr (kN)</th>
+                              <th style={S.th}>Mr (N·mm)</th>
+                              <th style={S.th}>Mr (kN·m)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {res.refPoints.map((pt, i) => (
+                              <tr key={i} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                                <td style={{ ...S.td, textAlign:"left", color:CLR.text }}>{pt.label}</td>
+                                <td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{pt.index}</td>
+                                <td style={S.td}>{pt.c===Infinity?"∞":fmt0(pt.c)}</td>
+                                <td style={S.td}>{pt.a!==undefined?fmt0(Math.min(pt.a,col.h)):"—"}</td>
+                                <td style={S.td}>{pt.Cr!==undefined?fmt0(pt.Cr):"—"}</td>
+                                <td style={S.td}>{pt.Frs_sum!==undefined?fmt0(pt.Frs_sum):"—"}</td>
+                                <td style={{ ...S.td, fontWeight:700, color:pt.Pr>=0?CLR.teal:CLR.orange }}>{fmt0(pt.Pr)}</td>
+                                <td style={{ ...S.td, color:CLR.muted }}>{(pt.Pr/1e3).toFixed(1)}</td>
+                                <td style={S.td}>{fmt0(pt.Mr)}</td>
+                                <td style={{ ...S.td, color:CLR.violet }}>{(pt.Mr/1e6).toFixed(3)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* ── Table 4: Bar strains at balance point ── */}
+                    <div className="print-avoid print-table-section" style={{ ...S.card, padding:0, overflow:"hidden", marginBottom:"1.5rem" }}>
+                      <div style={{ padding:"1rem 1.25rem", borderBottom:`1px solid ${CLR.border}` }}>
+                        <div style={S.h2}>Table 4: Steel Bar Strains &amp; Stresses @ Balance Point — CSA Cl. 10.1.2 / 10.1.4 (c = {fmt0(res.c_bal)} mm)</div>
+                      </div>
+                      <div style={{ overflowX:"auto" }}>
+                        <table style={S.table}>
+                          <thead>
+                            <tr>
+                              <th style={S.th}>Bar</th>
+                              <th style={S.th}>As (mm²)</th>
+                              <th style={S.th}>d (mm)</th>
+                              <th style={S.th}>ε_s</th>
+                              <th style={S.th}>fs (MPa)</th>
+                              <th style={S.th}>φs·fs (MPa)</th>
+                              <th style={S.th}>φs·fs·As = Fr_s (N)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {res.bars.map((bar, i) => {
+                              const c = res.c_bal;
+                              const es = 0.0035 * (1 - bar.d / c);
+                              const eps_y = col.fy / col.Es;
+                              const fs = Math.abs(es) >= eps_y ? Math.sign(es) * col.fy : es * col.Es;
+                              const Fs = 0.85 * fs * bar.As;
+                              return (
+                                <tr key={i} style={{ background: i%2===0?"transparent":"#ffffff05" }}>
+                                  <td style={{ ...S.td, color:CLR.accent, fontWeight:700 }}>{i+1}</td>
+                                  <td style={S.td}>{fmt0(bar.As)}</td>
+                                  <td style={S.td}>{fmt0(bar.d)}</td>
+                                  <td style={{ ...S.td, color:es>=0?CLR.red:CLR.teal }}>{es.toFixed(5)}</td>
+                                  <td style={{ ...S.td, color:fs>=0?CLR.red:CLR.teal }}>{fmt2(fs)}</td>
+                                  <td style={S.td}>{fmt2(0.85*fs)}</td>
+                                  <td style={{ ...S.td, color:Fs>=0?CLR.orange:CLR.teal, fontWeight:700 }}>{fmt0(Fs)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <BalancedHandCalculation res={res} col={col} />
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById("root"));
+  </script>
+</body>
+</html>

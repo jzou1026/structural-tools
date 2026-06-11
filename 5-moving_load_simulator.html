@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Traffic Load Sim v0.2</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono','Fira Code','Cascadia Code',Consolas,monospace;line-height:1.45}
+  header{background:#161b22;border-bottom:1px solid #30363d;padding:14px 26px;display:flex;gap:18px;align-items:center;position:sticky;top:0;z-index:10}
+  h1{font-size:17px;color:#58a6ff;letter-spacing:.04em}.sub{font-size:10px;color:#8b949e;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+  nav{margin-left:auto;display:flex;gap:8px}.tab{background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:6px;padding:8px 13px;cursor:pointer;font-family:inherit;font-size:12px}.tab.active{color:#0d1117;background:#58a6ff;border-color:#58a6ff;font-weight:800}
+  main{max-width:1420px;margin:0 auto;padding:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}.card{background:#1c2333;border:1px solid #30363d;border-radius:9px;padding:18px;margin-bottom:18px}.title{font-size:13px;color:#58a6ff;text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin-bottom:12px}.muted{color:#8b949e}.small{font-size:11px}.warn{color:#d29922}.ok{color:#3fb950}.bad{color:#f85149}.teal{color:#39d353}.orange{color:#f0883e}.violet{color:#bc8cff}
+  table{width:100%;border-collapse:collapse;font-size:12px}th{background:#21262d;color:#8b949e;padding:7px 8px;text-align:center;border-bottom:1px solid #30363d;text-transform:uppercase;font-size:10px;letter-spacing:.06em}td{padding:6px 7px;text-align:center;border-bottom:1px solid #27313d}tr:nth-child(even){background:#ffffff05}
+  input,select,textarea{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:5px;font-family:inherit;font-size:12px;padding:5px 7px;outline:none;width:100%;text-align:center}textarea{text-align:left;min-height:70px}.btn{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:8px 14px;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;letter-spacing:.04em}.btn.primary{background:#58a6ff;color:#0d1117;border-color:#58a6ff}.btn.danger{background:#3d1f1f;color:#f85149;border-color:#f85149}.btn.small{font-size:10px;padding:4px 8px}.pill{display:inline-block;border:1px solid #30363d;background:#0d1117;border-radius:999px;padding:2px 8px;font-size:10px;color:#8b949e}.section{border-top:1px solid #30363d;margin-top:14px;padding-top:14px}.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.right{margin-left:auto}.hidden{display:none}.metric{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:12px}.metric .num{font-size:19px;font-weight:900;margin-top:4px}.metric .lbl{font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:.06em}svg{max-width:100%;height:auto;display:block;margin:auto}.canvasWrap{overflow-x:auto;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px}.note{background:#0d1117;border-left:3px solid #58a6ff;padding:12px;color:#8b949e;font-size:12px}.error{background:#2b1515;border:1px solid #f85149;color:#ffb4ae;border-radius:8px;padding:12px;margin-bottom:14px}.success{background:#102018;border:1px solid #3fb950;color:#b6f5c5;border-radius:8px;padding:12px;margin-bottom:14px}
+
+
+  /* ── PRINT / PDF REPORT STYLES ─────────────────────────────────────────── */
+  .print-report-header{display:none}.print-only{display:none}.screen-only{display:inherit}.print-avoid{break-inside:avoid;page-break-inside:avoid}
+  @media print{
+    @page{size:letter landscape;margin:0.45in}
+    html,body{background:#fff!important;color:#111827!important;font-family:Arial,Helvetica,sans-serif!important;font-size:9pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    *{color:#111827!important;border-color:#c9ced6!important;box-shadow:none!important;text-shadow:none!important}
+    header,nav,.screen-only,#inputs,#theory{display:none!important}
+    #results{display:block!important}.hidden{display:none!important}
+    main{max-width:none!important;width:100%!important;margin:0!important;padding:0!important;background:#fff!important}
+    .print-report-header{display:block!important;margin:0 0 10pt 0!important;padding-bottom:8pt!important;border-bottom:2px solid #111827!important;break-after:avoid;page-break-after:avoid}
+    .print-report-header h1{font-size:17pt!important;line-height:1.2!important;margin:0 0 3pt 0!important;font-weight:800!important}
+    .print-report-header .meta{font-size:8.2pt!important;line-height:1.35!important;color:#374151!important}
+    .print-only{display:block!important}.screen-only{display:none!important}
+    .card,.metric,.success,.error{background:#fff!important;border:1px solid #c9ced6!important;border-radius:0!important;margin:0 0 10pt 0!important;padding:8pt!important;overflow:visible!important;break-inside:avoid!important;page-break-inside:avoid!important}
+    .grid,.grid3{display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:8pt!important;break-inside:avoid!important;page-break-inside:avoid!important}.grid{grid-template-columns:1fr 1fr!important}
+    .title{font-size:9pt!important;color:#111827!important;background:#eef2f7!important;margin:-8pt -8pt 8pt -8pt!important;padding:6pt 8pt!important;border-bottom:1px solid #c9ced6!important}
+    .canvasWrap{background:#fff!important;border:1px solid #c9ced6!important;padding:4pt!important;overflow:visible!important;break-inside:avoid!important;page-break-inside:avoid!important}
+    svg{max-width:100%!important;height:auto!important;max-height:2.65in!important;break-inside:avoid!important;page-break-inside:avoid!important}
+    table{width:100%!important;border-collapse:collapse!important;font-size:7.4pt!important;page-break-inside:auto!important}
+    thead{display:table-header-group!important}tfoot{display:table-footer-group!important}tr{break-inside:avoid!important;page-break-inside:avoid!important}
+    th,td{padding:3.2pt 3.5pt!important;border:1px solid #c9ced6!important;background:#fff!important;color:#111827!important}
+    th{background:#e8edf5!important;font-size:7.0pt!important;font-weight:700!important}
+    #envTable tbody tr:nth-child(n+61){display:none!important}
+    #statusBox{break-inside:avoid!important;page-break-inside:avoid!important}
+  }
+
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Moving Load Sim v0.2</h1><div class="sub">Moving load analysis · PDF / CSV reporting · CSA S6-14</div></div>
+  <nav><button class="tab active" data-tab="inputs">Inputs</button><button class="tab" data-tab="results">Results</button><button class="tab" data-tab="theory">Theory</button></nav>
+</header>
+<main>
+<section id="inputs">
+  <div class="toolbar" style="margin-bottom:18px">
+    <div><div style="font-size:22px;font-weight:900">Bridge Girder Model</div><div class="muted small">Build the structural analysis model that your spreadsheet does not calculate: moving vehicle envelopes on a continuous girder line.</div></div>
+    <button class="btn" id="loadEx">Load Design Example 1 style model</button>
+    <button class="btn primary" id="runBtn">▶ Run Moving-Load Envelope</button>
+  </div>
+
+  <div class="card">
+    <div class="title">0. Unit system</div>
+    <div class="grid">
+      <div>
+        <label class="muted small">Force unit</label>
+        <select id="forceUnit"><option value="kN">kN</option><option value="N">N</option><option value="kip">kip</option></select>
+      </div>
+      <div>
+        <label class="muted small">Length unit</label>
+        <select id="lengthUnit"><option value="m">m</option><option value="mm">mm</option><option value="ft">ft</option><option value="in">in</option></select>
+      </div>
+    </div>
+    <div class="note" style="margin-top:12px">Changing units converts the existing model inputs so the same physical bridge is preserved. Calculations are performed internally in kN and m, then reported in the selected force and length units.</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="title">1. Spans and stiffness</div>
+      <table>
+        <tr><th>Input</th><th>Value</th><th>Unit / Note</th></tr>
+        <tr><td>Span lengths</td><td><input id="spans" value="43,53,43"></td><td><span class="lenUnitText">m</span>, comma-separated</td></tr>
+        <tr><td>Relative EI per span</td><td><input id="eis" value="1,1,1"></td><td>dimensionless. Use relative stiffness for envelopes.</td></tr>
+        <tr><td>Output station spacing</td><td><input id="stationStep" type="number" value="0.5" step="0.1"></td><td><span class="lenUnitText">m</span></td></tr>
+        <tr><td>Vehicle step size</td><td><input id="moveStep" type="number" value="0.5" step="0.1"></td><td><span class="lenUnitText">m</span>. Smaller = slower / smoother.</td></tr>
+        <tr><td>Start offset before bridge</td><td><input id="startOffset" type="number" value="18" step="0.1"></td><td><span class="lenUnitText">m</span>. Lets the full CL-625 truck enter the bridge.</td></tr>
+      </table>
+      <div class="note" style="margin-top:12px">Supports are placed at every span point. Vertical displacement is fixed at supports; rotations are free, so this behaves like a continuous girder over pin/roller supports.</div>
+    </div>
+
+    <div class="card">
+      <div class="title">2. Girder distribution and factors</div>
+      <table>
+        <tr><th>Factor</th><th>Value</th><th>Meaning</th></tr>
+        <tr><td>F<sub>T</sub></td><td><input id="FT" type="number" value="0.95" step="0.01"></td><td>Truck load fraction / distribution factor</td></tr>
+        <tr><td>R<sub>L</sub></td><td><input id="RL" type="number" value="0.80" step="0.01"></td><td>Multi-lane modification factor</td></tr>
+        <tr><td>α<sub>L</sub></td><td><input id="alphaL" type="number" value="1.70" step="0.01"></td><td>Live-load factor</td></tr>
+        <tr><td>DLA</td><td><input id="DLA" type="number" value="0.25" step="0.01"></td><td>Dynamic load allowance. App uses 1 + DLA.</td></tr>
+        <tr><td>Analysis scale</td><td><input id="userScale" type="number" value="1.0" step="0.01"></td><td>Extra multiplier, normally 1.0</td></tr>
+      </table>
+      <div class="note" style="margin-top:12px">The app computes raw 1D effects M<sub>T</sub>, V<sub>T</sub>, then reports design envelopes using α<sub>L</sub>(1+DLA)R<sub>L</sub>F<sub>T</sub>. It intentionally does not calculate F<sub>T</sub>.</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="toolbar"><div class="title" style="margin-bottom:0">3. Moving vehicle axles</div><button class="btn small right" id="addAxle">+ Axle</button></div>
+      <table id="axleTable"><thead><tr><th>Axle #</th><th>Distance from front axle [<span class="lenUnitText">m</span>]</th><th>Axle load [<span class="forceUnitText">kN</span>]</th><th>—</th></tr></thead><tbody></tbody></table>
+      <div class="toolbar section">
+        <button class="btn small" data-vehicle="CL625">CL-625 truck</button>
+        <button class="btn small" data-vehicle="CL625lane">CL-625 lane-load truck</button>
+        <button class="btn small" data-vehicle="maint">Maintenance vehicle</button>
+      </div>
+      <div class="muted small" style="margin-top:10px">Use axle loads for a 1D whole-strip model, or already-distributed axle loads if this line represents one girder.</div>
+    </div>
+
+    <div class="card">
+      <div class="title">4. Lane / distributed load</div>
+      <table>
+        <tr><th>Input</th><th>Value</th><th>Unit / Note</th></tr>
+        <tr><td>Include lane UDL</td><td><select id="includeUDL"><option value="no">No — truck only</option><option value="yes">Yes — add uniform load</option></select></td><td>Approximate line UDL on bridge</td></tr>
+        <tr><td>Lane UDL intensity</td><td><input id="laneUDL" type="number" value="9.0" step="0.1"></td><td><span class="forceUnitText">kN</span>/<span class="lenUnitText">m</span> before F<sub>T</sub> and factors</td></tr>
+        <tr><td>Lane UDL extent</td><td><select id="udlExtent"><option value="full">Full bridge length</option><option value="betweenAxles">Only between front/rear axle projection</option></select></td><td>Full is conservative/simple for global envelope.</td></tr>
+        <tr><td>UDL mesh spacing</td><td><input id="meshStep" type="number" value="0.5" step="0.1"></td><td><span class="lenUnitText">m</span>. Used to convert UDL into nodal loads.</td></tr>
+      </table>
+      <div class="note" style="margin-top:12px">For bridge design production, confirm whether your CSA load case requires truck only, lane load, or both. This tool gives a controllable moving-load engine, not a substitute for engineering judgement.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="title">Figure 1 — Model preview</div>
+    <div class="canvasWrap"><svg id="previewSvg" width="1200" height="170"></svg></div>
+  </div>
+</section>
+
+<section id="results" class="hidden">
+  <div class="screen-only toolbar" style="margin-bottom:18px">
+    <div>
+      <div style="font-size:20px;font-weight:900">Analysis Results</div>
+      <div class="muted small">Print / Save PDF uses your browser print dialog. CSV exports the full station-by-station envelope table.</div>
+    </div>
+    <button class="btn primary right" id="printReport">🖨 Print / Save PDF Report</button>
+    <button class="btn" id="exportCsvTop">Export CSV</button>
+  </div>
+  <div class="print-report-header">
+    <h1>Traffic Load Sim v0.2 — Analysis Results Report</h1>
+    <div class="meta" id="printMeta">1D bridge girder traffic-load moving-load analysis | CSA S6-14 Section 3 input framework | Generated report</div>
+  </div>
+  <div id="statusBox"></div>
+  <div class="card print-avoid" id="reportSummaryCard">
+    <div class="title">Report Summary</div>
+    <table id="reportSummary"><tbody></tbody></table>
+  </div>
+  <div class="grid3 print-avoid" id="metrics"></div>
+  <div class="card print-avoid"><div class="title">Figure 2 — Factored bending moment envelope</div><div class="canvasWrap"><svg id="mSvg" width="1200" height="330"></svg></div></div>
+  <div class="card print-avoid"><div class="title">Figure 3 — Factored shear force envelope</div><div class="canvasWrap"><svg id="vSvg" width="1200" height="330"></svg></div></div>
+  <div class="card">
+    <div class="toolbar"><div class="title" style="margin-bottom:0">Envelope table</div><button class="btn small right screen-only" id="exportCsv">Export CSV</button></div>
+    <div style="max-height:420px;overflow:auto;margin-top:12px"><table id="envTable"><thead><tr><th>x (<span class="lenUnitText">m</span>)</th><th>Max +M (<span class="momentUnitText">kN·m</span>)</th><th>Max -M (<span class="momentUnitText">kN·m</span>)</th><th>Max +V (<span class="forceUnitText">kN</span>)</th><th>Max -V (<span class="forceUnitText">kN</span>)</th><th>Governing +M vehicle front x (<span class="lenUnitText">m</span>)</th><th>Governing -M vehicle front x (<span class="lenUnitText">m</span>)</th></tr></thead><tbody></tbody></table></div>
+    <div class="print-only small muted" style="margin-top:6pt">Printed table is limited to the first 60 displayed rows for readability. Use CSV export for the full envelope table.</div>
+  </div>
+</section>
+
+<section id="theory" class="hidden">
+  <div class="card">
+    <div class="title">Traceability header</div>
+    <table>
+      <tr><th>Field</th><th>Entry</th></tr>
+      <tr><td>Project Reference</td><td>Traffic Load Sim v0.2 — 1D steel girder bridge live-load envelope tool</td></tr>
+      <tr><td>Member / Element ID</td><td>User-defined continuous girder line model</td></tr>
+      <tr><td>Governing Load Case</td><td>User-selected CL-W / CL-625 truck-style traffic loading and optional lane UDL</td></tr>
+      <tr><td>Code & Edition</td><td>CSA S6-14, Canadian Highway Bridge Design Code, Section 3 and Section 5 references</td></tr>
+      <tr><td>Structural Analysis Reference</td><td>Kassimali, Structural Analysis, 6th Ed., influence lines and matrix stiffness concepts</td></tr>
+      <tr><td>Unit System</td><td>SI: kN, m, kN/m, kN·m</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="title">What this app calculates</div>
+    <p class="muted small">This app complements the design spreadsheet. The spreadsheet performs resistance and code-check calculations. This app performs the missing structural-analysis task: it moves vehicle axle loads along a continuous 1D girder model and envelopes M<sub>T</sub> and V<sub>T</sub>.</p>
+    <div class="section small">
+      <p><b class="teal">Step 1 — CSA S6-14 Cl. 3.8.1:</b> Treat the selected traffic model as a live-load model within the Section 3 live-load framework.</p>
+      <p><b class="teal">Step 2 — CSA S6-14 Cl. 3.8.3.1.1:</b> Represent CL-W loading conceptually as either a CL-W Truck case or a CL-W Lane Load case.</p>
+      <p><b class="teal">Step 3 — CSA S6-14 Cls. 3.8.3.1.2 and 3.8.3.1.3:</b> Use the user-entered axle pattern and optional 9.0 kN/m lane UDL as the longitudinal line loads for the girder-line analysis.</p>
+      <p><b class="teal">Step 4 — CSA S6-14 Cl. 3.8.4.5:</b> Apply dynamic load allowance through the user-entered DLA field. The current app multiplies the selected axle-load analysis by 1 + DLA when the user includes it.</p>
+      <p><b class="teal">Step 5 — CSA S6-14 Section 5 / Cl. 5.6:</b> Use the user-entered truck load fraction F<sub>T</sub> to scale the 1D line-girder results into girder design effects where the simplified method is applicable.</p>
+      <p><b class="teal">Step 6 — Kassimali Ch. 9:</b> Move the series of concentrated loads across the beam and envelope shear and bending moment responses at the output stations.</p>
+      <p><b class="teal">Step 7 — Kassimali Ch. 17:</b> Solve each vehicle position using a span-level matrix stiffness formulation with rotational support degrees of freedom and fixed-end moments.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="title">CSA S6-14 code reference map</div>
+    <table>
+      <tr><th>Topic in app</th><th>CSA S6-14 reference</th><th>How the app uses it</th></tr>
+      <tr><td>Live-load scope</td><td>Cl. 3.8.1</td><td>Frames the app as a live-load model tool for traffic-load effects.</td></tr>
+      <tr><td>Design lanes</td><td>Cl. 3.8.2 / Table 3.5</td><td>Not calculated automatically. User must provide F<sub>T</sub>, R<sub>L</sub>, and lane assumptions externally.</td></tr>
+      <tr><td>CL-W loading</td><td>Cl. 3.8.3.1.1</td><td>Provides the conceptual split between truck and lane-load cases.</td></tr>
+      <tr><td>CL-W Truck</td><td>Cl. 3.8.3.1.2 / Fig. 3.2</td><td>Represented by user-editable axle loads and axle spacings. The CL-625 preset uses five axle positions.</td></tr>
+      <tr><td>CL-W Lane Load</td><td>Cl. 3.8.3.1.3</td><td>Represented by reduced truck-style axle inputs plus the optional lane UDL field.</td></tr>
+      <tr><td>Load application</td><td>Cl. 3.8.4</td><td>The app moves axle patterns and envelopes effects. Detailed CSA placement rules remain the user's responsibility.</td></tr>
+      <tr><td>Dynamic load allowance</td><td>Cl. 3.8.4.5</td><td>User-entered DLA is applied as a multiplier of 1 + DLA.</td></tr>
+      <tr><td>Analysis model</td><td>Cl. 5.4 and Section 5</td><td>Uses a 1D line-girder analysis model for longitudinal effects.</td></tr>
+      <tr><td>Truck load fraction</td><td>Cl. 5.6 / symbols F<sub>T</sub>, M<sub>T</sub>, V<sub>T</sub></td><td>F<sub>T</sub> is entered by the user; the app does not calculate distribution factors internally.</td></tr>
+      <tr><td>Refined analysis</td><td>Cl. 5.9</td><td>Not performed. The app is not a grillage, shell, or finite-element bridge deck model.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="title">Structural analysis reference map</div>
+    <table>
+      <tr><th>Analysis task</th><th>Kassimali reference</th><th>Implementation note</th></tr>
+      <tr><td>Moving concentrated loads</td><td>Ch. 9, §9.3</td><td>The axle group is moved along the bridge and responses are calculated at each station.</td></tr>
+      <tr><td>Envelope of maximum response</td><td>Ch. 9, §9.4</td><td>The program stores maximum positive and negative M and V values at every output station.</td></tr>
+      <tr><td>Continuous indeterminate beam analysis</td><td>Ch. 15–17</td><td>The girder is treated as a continuous beam with support rotations as unknowns.</td></tr>
+      <tr><td>Matrix stiffness method</td><td>Ch. 17, §§17.1–17.6</td><td>The solver assembles a rotational stiffness matrix and solves for support rotations at each vehicle position.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="title">Governing equations implemented</div>
+    <table>
+      <tr><th>Equation / operation</th><th>Program implementation</th><th>Reference basis</th></tr>
+      <tr><td>Design scale factor</td><td>Scale = α<sub>L</sub>(1 + DLA)R<sub>L</sub>F<sub>T</sub> × user scale</td><td>CSA S6-14 Section 3 load factors and DLA input; CSA S6-14 Section 5 symbols F<sub>T</sub>, M<sub>T</sub>, V<sub>T</sub></td></tr>
+      <tr><td>Moving-load envelope</td><td>For each station, store max(+M), min(−M), max(+V), min(−V) over all vehicle positions</td><td>Kassimali Ch. 9, §§9.3–9.4</td></tr>
+      <tr><td>Continuous beam stiffness</td><td>One rotational degree of freedom per support; each span contributes 4EI/L and 2EI/L rotational stiffness terms</td><td>Kassimali Ch. 17 matrix stiffness method</td></tr>
+      <tr><td>Full-span UDL fixed-end moments</td><td>FEM = ±wL²/12 for full-span UDL mode</td><td>Classical fixed-end moment formulation used by the continuous-beam stiffness solver</td></tr>
+      <tr><td>Point-load fixed-end moments</td><td>FEM<sub>L</sub> = Pa b²/L² and FEM<sub>R</sub> = −Pa²b/L² for each axle within a span</td><td>Classical fixed-end moment formulation used by the continuous-beam stiffness solver</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="title">Limitations and user responsibilities</div>
+    <ul class="muted small" style="margin-left:20px;line-height:1.8">
+      <li><b class="warn">Not a full CSA S6 compliance checker:</b> The app computes 1D analysis effects only; it does not generate every CSA S6 Section 3 load case automatically.</li>
+      <li><b class="warn">F<sub>T</sub> is manual:</b> The user must calculate or justify F<sub>T</sub> using CSA S6-14 Section 5 simplified distribution, a grillage model, finite-element analysis, or other approved analysis.</li>
+      <li><b class="warn">Lane UDL behaviour:</b> Full-span lane UDL is applied by fixed-end moments. Moving partial UDL is approximated by concentrated loads over the selected mesh spacing.</li>
+      <li><b class="warn">No transverse distribution model:</b> The program is a 1D girder-line model, not a deck, grillage, or shell finite-element model.</li>
+      <li><b class="warn">No resistance design:</b> The program does not perform steel moment resistance, shear resistance, fatigue, shear stud, splice, bearing, stiffener, or serviceability code checks.</li>
+      <li><b class="warn">CSA S6-14 clauses should be reviewed:</b> Confirm design lanes, multi-lane factors, DLA category, load combinations, and governing load case outside this app before using results in design.</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (x,n=3)=> Number.isFinite(x) ? (Math.abs(x)<1e-9?"0":x.toFixed(n)) : "—";
+const LEN_TO_M = { m:1, mm:0.001, ft:0.3048, in:0.0254 };
+const FORCE_TO_KN = { kN:1, N:0.001, kip:4.4482216152605 };
+let currentUnits = { force:'kN', length:'m' };
+function lengthFactor(){ return LEN_TO_M[currentUnits.length] || 1; }
+function forceFactor(){ return FORCE_TO_KN[currentUnits.force] || 1; }
+function momentUnit(){ return `${currentUnits.force}·${currentUnits.length}`; }
+function toBaseLength(v){ return (+v || 0) * lengthFactor(); }
+function toBaseForce(v){ return (+v || 0) * forceFactor(); }
+function fromBaseLength(v){ return (+v || 0) / lengthFactor(); }
+function fromBaseForce(v){ return (+v || 0) / forceFactor(); }
+function fromBaseMoment(v){ return (+v || 0) / (forceFactor() * lengthFactor()); }
+function toBaseUDL(v){ return (+v || 0) * forceFactor() / lengthFactor(); }
+function fromBaseUDL(v){ return (+v || 0) * lengthFactor() / forceFactor(); }
+function parseLenListToBase(s){ return parseNums(s).map(x => x * lengthFactor()); }
+function cleanNum(v, n=4){ return fmt(v,n).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,''); }
+function formatList(vals, n=4){ return vals.map(v => cleanNum(v,n)).join(','); }
+function updateUnitLabels(){
+  document.querySelectorAll('.lenUnitText').forEach(el => el.textContent = currentUnits.length);
+  document.querySelectorAll('.forceUnitText').forEach(el => el.textContent = currentUnits.force);
+  document.querySelectorAll('.momentUnitText').forEach(el => el.textContent = momentUnit());
+  const f=$('forceUnit'), l=$('lengthUnit'); if(f) f.value=currentUnits.force; if(l) l.value=currentUnits.length;
+}
+function convertDisplayedInputs(newForce, newLength){
+  const old = {...currentUnits};
+  const oldLen = LEN_TO_M[old.length] || 1, oldForce = FORCE_TO_KN[old.force] || 1;
+  const newLen = LEN_TO_M[newLength] || 1, newForceFac = FORCE_TO_KN[newForce] || 1;
+  function oldLenToBase(v){ return (+v || 0) * oldLen; }
+  function baseToNewLen(v){ return (+v || 0) / newLen; }
+  function oldForceToBase(v){ return (+v || 0) * oldForce; }
+  function baseToNewForce(v){ return (+v || 0) / newForceFac; }
+  function oldUDLToBase(v){ return (+v || 0) * oldForce / oldLen; }
+  function baseToNewUDL(v){ return (+v || 0) * newLen / newForceFac; }
+  $('spans').value = formatList(parseNums($('spans').value).map(oldLenToBase).map(baseToNewLen));
+  ['stationStep','moveStep','startOffset','meshStep'].forEach(id => { if($(id)) $(id).value = cleanNum(baseToNewLen(oldLenToBase($(id).value)),5); });
+  if($('laneUDL')) $('laneUDL').value = cleanNum(baseToNewUDL(oldUDLToBase($('laneUDL').value)),5);
+  axles = axles.map(a => ({ x: baseToNewLen(oldLenToBase(a.x)), P: baseToNewForce(oldForceToBase(a.P)) }));
+  currentUnits = { force:newForce, length:newLength };
+  updateUnitLabels();
+  renderAxles();
+  drawPreview();
+}
+function setDesignExampleInputsInCurrentUnits(){
+  $('spans').value = formatList([43,53,43].map(fromBaseLength));
+  $('eis').value = '1,1,1';
+  $('FT').value='0.95'; $('RL').value='0.80'; $('alphaL').value='1.70'; $('DLA').value='0.25';
+  $('stationStep').value = cleanNum(fromBaseLength(0.5),5);
+  $('moveStep').value = cleanNum(fromBaseLength(0.5),5);
+  $('startOffset').value = cleanNum(fromBaseLength(18),5);
+  $('meshStep').value = cleanNum(fromBaseLength(0.5),5);
+  $('laneUDL').value = cleanNum(fromBaseUDL(9.0),5);
+  $('includeUDL').value='no';
+  setVehicle('CL625');
+}
+let lastEnvelope = null;
+let axles = [
+  {x:0, P:50}, {x:3.6, P:125}, {x:4.8, P:125}, {x:11.4, P:175}, {x:18.0, P:150}
+];
+
+function parseNums(s){ return String(s).split(',').map(v=>parseFloat(v.trim())).filter(v=>Number.isFinite(v)); }
+function cumulativeSpans(spans){ const xs=[0]; for(const L of spans) xs.push(xs[xs.length-1]+L); return xs; }
+function interpEI(eis, supports, x){
+  for(let i=0;i<supports.length-1;i++){ if(x>=supports[i]-1e-9 && x<=supports[i+1]+1e-9) return eis[i] || eis[eis.length-1] || 1; }
+  return eis[eis.length-1] || 1;
+}
+
+function renderAxles(){
+  const tb = document.querySelector('#axleTable tbody'); tb.innerHTML='';
+  axles.forEach((a,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td><input type="number" step="0.001" value="${a.x}" data-i="${i}" data-f="x"></td><td><input type="number" step="0.1" value="${a.P}" data-i="${i}" data-f="P"></td><td><button class="btn small danger" data-del="${i}">✕</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',e=>{ axles[+e.target.dataset.i][e.target.dataset.f]=parseFloat(e.target.value)||0; drawPreview(); }));
+  tb.querySelectorAll('button[data-del]').forEach(btn=>btn.addEventListener('click',e=>{ axles.splice(+e.target.dataset.del,1); renderAxles(); drawPreview(); }));
+}
+
+function setVehicle(type){
+  let base = [];
+  if(type==='CL625') base = [{x:0,P:50},{x:3.6,P:125},{x:4.8,P:125},{x:11.4,P:175},{x:18.0,P:150}];
+  if(type==='CL625lane') base = [{x:0,P:40},{x:3.6,P:100},{x:4.8,P:100},{x:11.4,P:140},{x:18.0,P:120}];
+  if(type==='maint') base = [{x:0,P:24},{x:2.0,P:56}];
+  axles = base.map(a => ({ x:fromBaseLength(a.x), P:fromBaseForce(a.P) }));
+  renderAxles(); drawPreview();
+}
+
+function drawPreview(){
+  const svg=$('previewSvg'); svg.innerHTML='';
+  const spans=parseNums($('spans').value); if(!spans.length) return;
+  const supports=cumulativeSpans(spans), L=supports[supports.length-1];
+  const W=1200,H=170,pad=55,y=78,scale=(W-2*pad)/(L||1);
+  const sx=x=>pad+x*scale;
+  line(svg,sx(0),y,sx(L),y,'#58a6ff',5);
+  for(const s of supports){
+    const x=sx(s); circle(svg,x,y,5,'#3fb950'); poly(svg,`${x},${y+6} ${x-11},${y+25} ${x+11},${y+25}`,'none','#3fb950',1.5); text(svg,x,y+47,fmt(s,1),'#8b949e',10,'middle');
+  }
+  for(let i=0;i<spans.length;i++){ text(svg,(sx(supports[i])+sx(supports[i+1]))/2,y+72,`Span ${i+1}: ${fmt(spans[i],3)} ${currentUnits.length}`,'#8b949e',10,'middle'); }
+  const maxP=Math.max(...axles.map(a=>Math.abs(a.P)),1); const vehicleStart = 0;
+  for(const a of axles){
+    const x=sx(vehicleStart+a.x); if(vehicleStart+a.x<0||vehicleStart+a.x>L) continue;
+    const ah=22+20*Math.abs(a.P)/maxP; line(svg,x,y-5,x,y-ah,'#f0883e',2); poly(svg,`${x},${y-5} ${x-5},${y-15} ${x+5},${y-15}`,'#f0883e'); text(svg,x+8,y-ah+4,`${fmt(a.P,3)} ${currentUnits.force}`,'#f0883e',10,'start');
+  }
+  text(svg,pad,18,'Preview shows truck with front axle at x=0. Analysis moves it across the whole bridge.','#8b949e',11,'start');
+}
+
+function line(svg,x1,y1,x2,y2,stroke,w=1){ const e=document.createElementNS('http://www.w3.org/2000/svg','line'); e.setAttribute('x1',x1);e.setAttribute('y1',y1);e.setAttribute('x2',x2);e.setAttribute('y2',y2);e.setAttribute('stroke',stroke);e.setAttribute('stroke-width',w); svg.appendChild(e); return e; }
+function circle(svg,cx,cy,r,fill){ const e=document.createElementNS('http://www.w3.org/2000/svg','circle'); e.setAttribute('cx',cx);e.setAttribute('cy',cy);e.setAttribute('r',r);e.setAttribute('fill',fill); svg.appendChild(e); return e; }
+function poly(svg,pts,fill,stroke=null,w=1){ const e=document.createElementNS('http://www.w3.org/2000/svg','polygon'); e.setAttribute('points',pts); e.setAttribute('fill',fill); if(stroke){e.setAttribute('stroke',stroke);e.setAttribute('stroke-width',w)} svg.appendChild(e); return e; }
+function text(svg,x,y,txt,fill,size=10,anchor='middle'){ const e=document.createElementNS('http://www.w3.org/2000/svg','text'); e.setAttribute('x',x); e.setAttribute('y',y); e.setAttribute('fill',fill); e.setAttribute('font-size',size); e.setAttribute('text-anchor',anchor); e.setAttribute('font-family','monospace'); e.textContent=txt; svg.appendChild(e); return e; }
+function path(svg,d,stroke,fill='none',w=2){ const e=document.createElementNS('http://www.w3.org/2000/svg','path'); e.setAttribute('d',d);e.setAttribute('stroke',stroke);e.setAttribute('fill',fill);e.setAttribute('stroke-width',w); svg.appendChild(e); return e; }
+
+function uniqueSorted(arr, tol=1e-7){
+  arr=arr.filter(Number.isFinite).sort((a,b)=>a-b); const out=[];
+  for(const x of arr){ if(!out.length || Math.abs(x-out[out.length-1])>tol) out.push(x); }
+  return out;
+}
+
+function solveLinear(A,b){
+  const n=b.length; const M=A.map((r,i)=>r.slice().concat([b[i]]));
+  for(let k=0;k<n;k++){
+    let piv=k; for(let i=k+1;i<n;i++) if(Math.abs(M[i][k])>Math.abs(M[piv][k])) piv=i;
+    if(Math.abs(M[piv][k])<1e-12) return null;
+    [M[k],M[piv]]=[M[piv],M[k]];
+    for(let i=k+1;i<n;i++){ const f=M[i][k]/M[k][k]; for(let j=k;j<=n;j++) M[i][j]-=f*M[k][j]; }
+  }
+  const x=Array(n).fill(0);
+  for(let i=n-1;i>=0;i--){ let s=M[i][n]; for(let j=i+1;j<n;j++) s-=M[i][j]*x[j]; x[i]=s/M[i][i]; }
+  return x;
+}
+
+
+// Fast span-level continuous-beam engine.
+// Instead of remeshing the beam at every vehicle position, this solver keeps one
+// rotational DOF per support and converts loads on each span into fixed-end moments.
+// This is much faster for continuous girder-line moving-load envelopes.
+function buildRotationalStiffness(spans, eis){
+  const n = spans.length + 1;
+  const K = Array.from({length:n},()=>Array(n).fill(0));
+  for(let e=0;e<spans.length;e++){
+    const L = spans[e];
+    const EI = eis[e] || eis[eis.length-1] || 1;
+    const k11 = 4*EI/L, k12 = 2*EI/L, k22 = 4*EI/L;
+    K[e][e] += k11; K[e][e+1] += k12;
+    K[e+1][e] += k12; K[e+1][e+1] += k22;
+  }
+  return K;
+}
+
+function spanIndexAt(supports, x){
+  if(x <= supports[0]) return 0;
+  for(let i=0;i<supports.length-1;i++){
+    if(x >= supports[i]-1e-9 && x <= supports[i+1]+1e-9) return i;
+  }
+  return supports.length-2;
+}
+
+function addPointLoadToSpanLoads(spanLoads, supports, Ltot, xGlobal, P){
+  if(!Number.isFinite(P) || Math.abs(P) < 1e-12) return;
+  if(xGlobal < -1e-9 || xGlobal > Ltot + 1e-9) return;
+  const x = Math.max(0, Math.min(Ltot, xGlobal));
+  const si = spanIndexAt(supports, x);
+  const a = x - supports[si];
+  spanLoads[si].push({a, P});
+}
+
+function assembleLoadsForPosition(frontX, cfg){
+  const {spans,supports,L,includeUDL,laneUDL,udlExtent,meshStep}=cfg;
+  const spanLoads = spans.map(()=>[]);
+
+  // Moving axle loads
+  for(const ax of cfg.axlesBase){
+    addPointLoadToSpanLoads(spanLoads, supports, L, frontX + ax.x, ax.P);
+  }
+
+  // Lane UDL: exact for full bridge, discretized only when the UDL extent moves.
+  const spanUDL = spans.map(()=>0);
+  if(includeUDL && Math.abs(laneUDL) > 1e-12){
+    if(udlExtent === 'full'){
+      for(let i=0;i<spans.length;i++) spanUDL[i] = laneUDL;
+    } else {
+      const xs = cfg.axlesBase.map(ax=>frontX+ax.x);
+      const a0 = Math.max(0, Math.min(...xs));
+      const b0 = Math.min(L, Math.max(...xs));
+      if(b0 > a0){
+        // Discretize the moving UDL region as concentrated tributary loads.
+        const ds = Math.max(meshStep || 0.5, 0.05);
+        for(let x=a0; x<=b0+1e-9; x+=ds){
+          const left = Math.max(a0, x-ds/2);
+          const right = Math.min(b0, x+ds/2);
+          const trib = Math.max(0, right-left);
+          addPointLoadToSpanLoads(spanLoads, supports, L, x, laneUDL*trib);
+        }
+      }
+    }
+  }
+  return {spanLoads, spanUDL};
+}
+
+function fixedEndVector(spans, spanLoads, spanUDL){
+  const n = spans.length + 1;
+  const Qf = Array(n).fill(0);
+  const fems = spans.map(()=>({ML:0, MR:0}));
+  for(let e=0;e<spans.length;e++){
+    const L = spans[e];
+    let ML = 0, MR = 0;
+    // Full-span UDL fixed-end moments.
+    const w = spanUDL[e] || 0;
+    if(Math.abs(w) > 1e-12){
+      ML += w*L*L/12;
+      MR -= w*L*L/12;
+    }
+    // Point load fixed-end moments, downward positive.
+    for(const ld of spanLoads[e]){
+      const a = Math.max(0, Math.min(L, ld.a));
+      const b = L - a;
+      const P = ld.P;
+      ML += P*a*b*b/(L*L);
+      MR -= P*a*a*b/(L*L);
+    }
+    fems[e] = {ML, MR};
+    Qf[e] += ML;
+    Qf[e+1] += MR;
+  }
+  return {Qf, fems};
+}
+
+function recoverEndMoments(spans, eis, theta, fems){
+  const endM = spans.map((L,e)=>{
+    const EI = eis[e] || eis[eis.length-1] || 1;
+    const ML = 4*EI/L*theta[e] + 2*EI/L*theta[e+1] + fems[e].ML;
+    const MR = 2*EI/L*theta[e] + 4*EI/L*theta[e+1] + fems[e].MR;
+    return {ML, MR};
+  });
+  return endM;
+}
+
+function valuesAtStations(cfg, spanLoads, spanUDL, endM){
+  const {spans,supports,stations,eis}=cfg;
+  const values = {};
+  for(const st of stations){
+    const e = spanIndexAt(supports, st);
+    const L = spans[e];
+    const x = Math.max(0, Math.min(L, st - supports[e]));
+    const ML = endM[e].ML, MR = endM[e].MR;
+    const loads = spanLoads[e].slice().sort((a,b)=>a.a-b.a);
+
+    // Left reaction/shear from end moments and span loads.
+    let sumPb = 0;
+    for(const ld of loads) sumPb += ld.P * (L - ld.a);
+    const w = spanUDL[e] || 0;
+    sumPb += w * L * (L/2); // resultant wL acting at L/2
+    const Vleft = (ML + MR + sumPb) / L;
+
+    let V = Vleft;
+    let M = -ML + Vleft*x;
+
+    // UDL contribution, if full-span UDL active on this span.
+    if(Math.abs(w) > 1e-12){
+      V -= w*x;
+      M -= w*x*x/2;
+    }
+
+    for(const ld of loads){
+      if(x >= ld.a - 1e-9){
+        V -= ld.P;
+        M -= ld.P * (x - ld.a);
+      }
+    }
+    values[st.toFixed(6)] = {M, V};
+  }
+  return values;
+}
+
+function analyzeAtPositionFast(frontX, cfg){
+  const {spanLoads, spanUDL} = assembleLoadsForPosition(frontX, cfg);
+  const {Qf, fems} = fixedEndVector(cfg.spans, spanLoads, spanUDL);
+  const RHS = Qf.map(v => -v);
+  const theta = solveLinear(cfg.Krot, RHS);
+  if(!theta) throw new Error('Singular rotational stiffness matrix. Check spans and stiffness values.');
+  const endM = recoverEndMoments(cfg.spans, cfg.eis, theta, fems);
+  return valuesAtStations(cfg, spanLoads, spanUDL, endM);
+}
+
+function runEnvelope(){
+  const t0 = performance.now();
+  try{
+    const spans=parseLenListToBase($('spans').value); if(!spans.length) throw new Error('Enter at least one span length.');
+    if(spans.some(L=>L<=0)) throw new Error('Span lengths must be positive.');
+    let eis=parseNums($('eis').value); if(!eis.length) eis=[1]; while(eis.length<spans.length) eis.push(eis[eis.length-1]);
+    const supports=cumulativeSpans(spans), L=supports[supports.length-1];
+    const stationStep=Math.max(toBaseLength($('stationStep').value)||0.5,0.0001);
+    const moveStep=Math.max(toBaseLength($('moveStep').value)||0.5,0.0001);
+    const startOffset=toBaseLength($('startOffset').value)||0;
+    const stations=[]; for(let x=0;x<=L+1e-9;x+=stationStep) stations.push(+Math.min(L,x).toFixed(6)); if(stations[stations.length-1]!==L) stations.push(L);
+    const meshStep=Math.max(toBaseLength($('meshStep').value)||0.5,0.0001);
+    const cfg={spans,eis,supports,L,stations,meshStep,includeUDL:$('includeUDL').value==='yes',laneUDL:toBaseUDL($('laneUDL').value)||0,udlExtent:$('udlExtent').value};
+    cfg.axlesBase = axles.map(a => ({ x:toBaseLength(a.x), P:toBaseForce(a.P) }));
+    cfg.Krot = buildRotationalStiffness(spans, eis);
+    const scale=(parseFloat($('FT').value)||0)*(parseFloat($('RL').value)||0)*(parseFloat($('alphaL').value)||0)*(1+(parseFloat($('DLA').value)||0))*(parseFloat($('userScale').value)||1);
+    const env=stations.map(x=>({x,maxM:-Infinity,minM:Infinity,maxV:-Infinity,minV:Infinity,posMFront:null,negMFront:null,posVFront:null,negVFront:null}));
+    const start=-Math.max(0,startOffset); const end=L; let positions=0;
+    for(let front=start; front<=end+1e-9; front+=moveStep){
+      const vals=analyzeAtPositionFast(front,cfg); positions++;
+      env.forEach(e=>{ const r=vals[e.x.toFixed(6)]; if(!r) return; const M=r.M*scale, V=r.V*scale; if(M>e.maxM){e.maxM=M;e.posMFront=front;} if(M<e.minM){e.minM=M;e.negMFront=front;} if(V>e.maxV){e.maxV=V;e.posVFront=front;} if(V<e.minV){e.minV=V;e.negVFront=front;} });
+    }
+    const elapsedMs = performance.now() - t0;
+    const outEnv = env.map(e => ({
+      x:fromBaseLength(e.x),
+      maxM:fromBaseMoment(e.maxM), minM:fromBaseMoment(e.minM),
+      maxV:fromBaseForce(e.maxV), minV:fromBaseForce(e.minV),
+      posMFront:fromBaseLength(e.posMFront), negMFront:fromBaseLength(e.negMFront),
+      posVFront:fromBaseLength(e.posVFront), negVFront:fromBaseLength(e.negVFront)
+    }));
+    lastEnvelope={env:outEnv,scale,L:fromBaseLength(L),supports:supports.map(fromBaseLength),positions,elapsedMs,units:{...currentUnits}};
+    renderResults(lastEnvelope);
+    activateTab('results');
+  }catch(err){
+    $('statusBox').innerHTML=`<div class="error"><b>Solver error:</b> ${err.message}</div>`; activateTab('results');
+  }
+}
+
+
+function getInputSnapshot(){
+  return {
+    spans: $('spans').value,
+    eis: $('eis').value,
+    stationStep: $('stationStep').value,
+    moveStep: $('moveStep').value,
+    startOffset: $('startOffset').value,
+    FT: $('FT').value,
+    RL: $('RL').value,
+    alphaL: $('alphaL').value,
+    DLA: $('DLA').value,
+    userScale: $('userScale').value,
+    includeUDL: $('includeUDL').value,
+    laneUDL: $('laneUDL').value,
+    udlExtent: $('udlExtent').value,
+    meshStep: $('meshStep').value,
+    forceUnit: currentUnits.force,
+    lengthUnit: currentUnits.length,
+    momentUnit: momentUnit(),
+    axles: axles.map((a,i)=>`#${i+1}: x=${fmt(a.x,3)} ${currentUnits.length}, P=${fmt(a.P,3)} ${currentUnits.force}`).join('; ')
+  };
+}
+
+function updateReportSummary(data){
+  const snap = getInputSnapshot();
+  const rows = [
+    ['Project Reference','Traffic Load Sim v0.2'],
+    ['Member / Element ID','1D continuous steel girder bridge line model'],
+    ['Governing Load Case','Traffic/live-load moving-load envelope; user-selected vehicle and optional lane UDL'],
+    ['Code & Edition','CSA S6-14; user-entered Section 3 traffic-load factors and Section 5 distribution factor'],
+    ['Structural Analysis Reference','Kassimali, Structural Analysis, 6th Ed.; moving loads and matrix stiffness concepts'],
+    ['Date',new Date().toLocaleString()],
+    ['Unit system',`${snap.forceUnit}, ${snap.lengthUnit}, ${snap.momentUnit}`],
+    ['Span lengths',snap.spans + ` ${snap.lengthUnit}`],
+    ['Relative EI per span',snap.eis],
+    ['Output / vehicle step',`${snap.stationStep} / ${snap.moveStep} ${snap.lengthUnit}`],
+    ['Vehicle axle pattern',snap.axles],
+    ['Lane UDL',snap.includeUDL === 'yes' ? `${snap.laneUDL} ${snap.forceUnit}/${snap.lengthUnit}; extent = ${snap.udlExtent}` : 'Not included'],
+    ['Scale factor',`F_T=${snap.FT}, R_L=${snap.RL}, α_L=${snap.alphaL}, DLA=${snap.DLA}, extra=${snap.userScale}`],
+    ['Analysis runtime',data ? `${fmt(data.positions,0)} positions analyzed in ${fmt(data.elapsedMs || 0,1)} ms` : 'Not analyzed']
+  ];
+  const tbody = $('reportSummary') ? $('reportSummary').querySelector('tbody') : null;
+  if(tbody) tbody.innerHTML = rows.map(r=>`<tr><td style="text-align:left;font-weight:700">${r[0]}</td><td style="text-align:left">${r[1]}</td></tr>`).join('');
+  if($('printMeta')) $('printMeta').textContent = `1D bridge girder traffic-load moving-load analysis | Units: ${snap.forceUnit}, ${snap.lengthUnit}, ${snap.momentUnit} | Generated: ${new Date().toLocaleString()}`;
+}
+
+function printReport(){
+  if(!lastEnvelope){
+    alert('Run the moving-load envelope analysis before printing a report.');
+    return;
+  }
+  updateReportSummary(lastEnvelope);
+  activateTab('results');
+  setTimeout(()=>window.print(), 80);
+}
+
+function renderResults(data){
+  $('statusBox').innerHTML=`<div class="success"><b>Analysis complete.</b> ${data.positions} vehicle positions analyzed in ${fmt(data.elapsedMs || 0,1)} ms. Applied scale factor = ${fmt(data.scale,4)}.</div>`;
+  updateReportSummary(data);
+  const env=data.env;
+  const maxPosM=env.reduce((a,b)=>b.maxM>a.maxM?b:a,env[0]); const maxNegM=env.reduce((a,b)=>b.minM<a.minM?b:a,env[0]);
+  const maxPosV=env.reduce((a,b)=>b.maxV>a.maxV?b:a,env[0]); const maxNegV=env.reduce((a,b)=>b.minV<a.minV?b:a,env[0]);
+  $('metrics').innerHTML=`
+    <div class="metric"><div class="lbl">Max positive moment</div><div class="num orange">${fmt(maxPosM.maxM)} ${momentUnit()}</div><div class="muted small">at x = ${fmt(maxPosM.x,2)} m</div></div>
+    <div class="metric"><div class="lbl">Max negative moment</div><div class="num orange">${fmt(maxNegM.minM)} ${momentUnit()}</div><div class="muted small">at x = ${fmt(maxNegM.x,2)} m</div></div>
+    <div class="metric"><div class="lbl">Max shear magnitude</div><div class="num teal">${fmt(Math.max(Math.abs(maxPosV.maxV),Math.abs(maxNegV.minV)))} ${currentUnits.force}</div><div class="muted small">critical x = ${fmt(Math.abs(maxPosV.maxV)>Math.abs(maxNegV.minV)?maxPosV.x:maxNegV.x,2)} m</div></div>`;
+  plotEnvelope($('mSvg'),env,'M','Bending moment',momentUnit(),'#f0883e',data.supports);
+  plotEnvelope($('vSvg'),env,'V','Shear force',currentUnits.force,'#39d353',data.supports);
+  const tb=document.querySelector('#envTable tbody'); tb.innerHTML='';
+  env.forEach((e,i)=>{ if(i%Math.max(1,Math.round(env.length/160))!==0 && i!==env.length-1) return; const tr=document.createElement('tr'); tr.innerHTML=`<td>${fmt(e.x,2)}</td><td>${fmt(e.maxM)}</td><td>${fmt(e.minM)}</td><td>${fmt(e.maxV)}</td><td>${fmt(e.minV)}</td><td>${fmt(e.posMFront,2)}</td><td>${fmt(e.negMFront,2)}</td>`; tb.appendChild(tr); });
+}
+
+function plotEnvelope(svg,env,type,title,unit,color,supports){
+  svg.innerHTML=''; const W=1200,H=330,padx=65,pady=36; const xs=env.map(e=>e.x); const L=xs[xs.length-1]||1;
+  const y1=env.map(e=> type==='M'?e.maxM:e.maxV); const y2=env.map(e=> type==='M'?e.minM:e.minV);
+  const maxAbs=Math.max(1,...y1.map(Math.abs),...y2.map(Math.abs)); const sx=x=>padx+x/L*(W-2*padx); const sy=y=>H/2-y/maxAbs*(H/2-pady);
+  line(svg,padx,H/2,W-padx,H/2,'#30363d',1); line(svg,padx,pady,padx,H-pady,'#30363d',1);
+  for(const s of supports){ line(svg,sx(s),pady,sx(s),H-pady,'#30363d',1); text(svg,sx(s),H-8,fmt(s,1),'#8b949e',10,'middle'); }
+  for(const v of [-1,-.5,.5,1]){ const yy=sy(v*maxAbs); line(svg,padx,yy,W-padx,yy,'#26303b',0.8); text(svg,padx-6,yy+4,fmt(v*maxAbs),'#8b949e',9,'end'); }
+  const d1=env.map((e,i)=>`${i?'L':'M'} ${sx(e.x)},${sy(type==='M'?e.maxM:e.maxV)}`).join(' ');
+  const d2=env.map((e,i)=>`${i?'L':'M'} ${sx(e.x)},${sy(type==='M'?e.minM:e.minV)}`).join(' ');
+  path(svg,d1,color,'none',2.2); path(svg,d2,color,'none',2.2);
+  text(svg,padx,18,`${title} envelope [${unit}]`,'#e6edf3',12,'start'); text(svg,W-padx,H-8,'x (m)','#8b949e',10,'end');
+}
+
+function exportCsv(){
+  if(!lastEnvelope) return;
+  const rows=[[`x_${currentUnits.length}`,`max_positive_M_${currentUnits.force}${currentUnits.length}`,`max_negative_M_${currentUnits.force}${currentUnits.length}`,`max_positive_V_${currentUnits.force}`,`max_negative_V_${currentUnits.force}`,`front_x_for_posM_${currentUnits.length}`,`front_x_for_negM_${currentUnits.length}`,`front_x_for_posV_${currentUnits.length}`,`front_x_for_negV_${currentUnits.length}`]];
+  lastEnvelope.env.forEach(e=>rows.push([e.x,e.maxM,e.minM,e.maxV,e.minV,e.posMFront,e.negMFront,e.posVFront,e.negVFront].map(v=>Number.isFinite(v)?v:'')));
+  const csv=rows.map(r=>r.join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='traffic_load_sim_v0_2_envelope.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+function activateTab(id){
+  document.querySelectorAll('nav .tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+  ['inputs','results','theory'].forEach(t=>$(t).classList.toggle('hidden',t!==id));
+}
+
+document.querySelectorAll('nav .tab').forEach(b=>b.addEventListener('click',()=>activateTab(b.dataset.tab)));
+$('runBtn').addEventListener('click',runEnvelope); $('addAxle').addEventListener('click',()=>{axles.push({x:0,P:0}); renderAxles();});
+document.querySelectorAll('[data-vehicle]').forEach(b=>b.addEventListener('click',()=>setVehicle(b.dataset.vehicle)));
+$('loadEx').addEventListener('click',()=>{ setDesignExampleInputsInCurrentUnits(); drawPreview(); });
+$('exportCsv').addEventListener('click',exportCsv);
+$('exportCsvTop').addEventListener('click',exportCsv);
+$('printReport').addEventListener('click',printReport);
+$('forceUnit').addEventListener('change', e => convertDisplayedInputs(e.target.value, currentUnits.length));
+$('lengthUnit').addEventListener('change', e => convertDisplayedInputs(currentUnits.force, e.target.value));
+['spans','eis','FT','RL','alphaL','DLA','stationStep','moveStep','includeUDL','laneUDL','meshStep','udlExtent'].forEach(id=>$(id).addEventListener('input',drawPreview));
+updateUnitLabels();
+renderAxles(); drawPreview();
+</script>
+</body>
+</html>
