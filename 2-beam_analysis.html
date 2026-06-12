@@ -184,6 +184,8 @@
     };
 
     // Settlement unit conversion factors (settle unit → dist unit)
+    const DEFAULT_UNITS = "kN/m";
+
     const SETTLE_CONV = {
       "kN/m":   1/1000,   // mm → m
       "kN/mm":  1,        // mm → mm
@@ -1398,12 +1400,88 @@
       const [tab, setTab]         = useState("inputs");
       const [nodes, setNodes]     = useState(DEFAULT_NODES.map(n => ({...n})));
       const [members, setMembers] = useState(DEFAULT_MEMBERS.map(m => ({...m})));
-      const [units, setUnits]     = useState("kN/m");
+      const [units, setUnits]     = useState(DEFAULT_UNITS);
       const [loadCases, setLoadCases] = useState(DEFAULT_LOAD_CASES.map(lc => cloneDeep(lc)));
       const [loadCombinations, setLoadCombinations] = useState(DEFAULT_LOAD_COMBINATIONS.map(c => cloneDeep(c)));
       const [activeLoadCaseId, setActiveLoadCaseId] = useState(DEFAULT_LOAD_CASES[0].id);
       const [selectedResultId, setSelectedResultId] = useState(DEFAULT_LOAD_CASES[0].id);
       const [result, setResult]   = useState(null);
+
+      const saveWorkingFile = () => {
+        // Save the current model by producing a new HTML file with the same source code,
+        // but with the DEFAULT_* input constants replaced by the live React state.
+        // This is intentionally code-level saving: the downloaded file opens like a fresh app,
+        // with the saved model becoming the default model in the source.
+        const clone = document.documentElement.cloneNode(true);
+        const root = clone.querySelector("#root");
+        if (root) root.innerHTML = "";
+        let html = "<!DOCTYPE html>\n" + clone.outerHTML;
+
+        const safeLiteral = (value) => JSON.stringify(value, null, 2)
+          .replace(/</g, "\\u003C")
+          .replace(/>/g, "\\u003E")
+          .replace(/&/g, "\\u0026")
+          .replace(/\u2028/g, "\\u2028")
+          .replace(/\u2029/g, "\\u2029");
+
+        const replaceConstAssignment = (source, constName, literal) => {
+          const marker = "const " + constName + " =";
+          const start = source.indexOf(marker);
+          if (start < 0) return source;
+          let i = start + marker.length;
+          while (i < source.length && /\s/.test(source[i])) i++;
+          let depth = 0;
+          let quote = null;
+          let escaped = false;
+          let end = i;
+          for (; end < source.length; end++) {
+            const ch = source[end];
+            if (quote) {
+              if (escaped) {
+                escaped = false;
+              } else if (ch === "\\") {
+                escaped = true;
+              } else if (ch === quote) {
+                quote = null;
+              }
+              continue;
+            }
+            if (ch === '"' || ch === "'" || ch === "`") {
+              quote = ch;
+            } else if (ch === "[" || ch === "{") {
+              depth++;
+            } else if (ch === "]" || ch === "}") {
+              depth--;
+            } else if (ch === ";" && depth <= 0) {
+              end++;
+              break;
+            }
+          }
+          return source.slice(0, start) + "const " + constName + " = " + literal + ";" + source.slice(end);
+        };
+
+        const savedNodes = nodes.map(n => ({...n}));
+        const savedMembers = members.map(m => ({...m}));
+        const savedLoadCases = cloneDeep(loadCases);
+        const savedLoadCombinations = cloneDeep(loadCombinations);
+
+        html = replaceConstAssignment(html, "DEFAULT_UNITS", safeLiteral(units));
+        html = replaceConstAssignment(html, "DEFAULT_NODES", safeLiteral(savedNodes));
+        html = replaceConstAssignment(html, "DEFAULT_MEMBERS", safeLiteral(savedMembers));
+        html = replaceConstAssignment(html, "DEFAULT_LOAD_CASES", safeLiteral(savedLoadCases));
+        html = replaceConstAssignment(html, "DEFAULT_LOAD_COMBINATIONS", safeLiteral(savedLoadCombinations));
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        const blob = new Blob([html], { type:"text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Beams_v0_3_6_working_${timestamp}.html`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
 
       const handleCalculate = () => {
         const cases = solveLoadCases(nodes, members, loadCases, loadCombinations, units);
@@ -1435,6 +1513,7 @@
                 </button>
               ))}
             </nav>
+            <button style={{ ...S.btn("secondary"), marginLeft:12, whiteSpace:"nowrap" }} onClick={saveWorkingFile}>💾 Save Working File</button>
           </header>
           <main style={S.main}>
             {tab==="inputs"  && <InputsView nodes={nodes} setNodes={setNodes} members={members} setMembers={setMembers} units={units} setUnits={setUnits} loadCases={loadCases} setLoadCases={setLoadCases} loadCombinations={loadCombinations} setLoadCombinations={setLoadCombinations} activeLoadCaseId={activeLoadCaseId} setActiveLoadCaseId={setActiveLoadCaseId} onCalculate={handleCalculate}/>}

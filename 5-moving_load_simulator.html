@@ -53,6 +53,7 @@
   <div class="toolbar" style="margin-bottom:18px">
     <div><div style="font-size:22px;font-weight:900">Bridge Girder Model</div><div class="muted small">Build the structural analysis model that your spreadsheet does not calculate: moving vehicle envelopes on a continuous girder line.</div></div>
     <button class="btn" id="loadEx">Load Design Example 1 style model</button>
+    <button class="btn" id="saveWorkingFile">💾 Save Working File</button>
     <button class="btn primary" id="runBtn">▶ Run Moving-Load Envelope</button>
   </div>
 
@@ -649,6 +650,74 @@ function plotEnvelope(svg,env,type,title,unit,color,supports){
   text(svg,padx,18,`${title} envelope [${unit}]`,'#e6edf3',12,'start'); text(svg,W-padx,H-8,'x (m)','#8b949e',10,'end');
 }
 
+function saveWorkingFile(){
+  // Save-progress workflow:
+  // This creates a new standalone HTML file with the same app code, but with
+  // the current browser inputs written back into the HTML defaults and JS
+  // startup variables. When the downloaded file is opened, those values become
+  // the new default model inputs.
+  const clone = document.documentElement.cloneNode(true);
+
+  const setCloneValue = (id, value) => {
+    const el = clone.querySelector('#' + id);
+    if(!el) return;
+    if(el.tagName === 'SELECT'){
+      Array.from(el.options).forEach(opt => {
+        if(String(opt.value) === String(value)) opt.setAttribute('selected','selected');
+        else opt.removeAttribute('selected');
+      });
+    } else if(el.tagName === 'TEXTAREA') {
+      el.textContent = value;
+    } else {
+      el.setAttribute('value', value);
+    }
+  };
+
+  [
+    'spans','eis','stationStep','moveStep','startOffset',
+    'FT','RL','alphaL','DLA','userScale',
+    'includeUDL','laneUDL','udlExtent','meshStep',
+    'forceUnit','lengthUnit'
+  ].forEach(id => {
+    const live = $(id);
+    if(live) setCloneValue(id, live.value);
+  });
+
+  // Keep the saved file opening on the Inputs tab, like a normal working file.
+  const cloneInputs = clone.querySelector('#inputs');
+  const cloneResults = clone.querySelector('#results');
+  const cloneTheory = clone.querySelector('#theory');
+  if(cloneInputs) cloneInputs.classList.remove('hidden');
+  if(cloneResults) cloneResults.classList.add('hidden');
+  if(cloneTheory) cloneTheory.classList.add('hidden');
+  clone.querySelectorAll('nav .tab').forEach(btn => {
+    if(btn.dataset && btn.dataset.tab === 'inputs') btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+
+  let html = '<!DOCTYPE html>\n' + clone.outerHTML;
+
+  // Patch the JavaScript startup state so dynamically generated axle rows
+  // and unit labels also load with the saved values.
+  const unitsLiteral = `let currentUnits = { force:${JSON.stringify(currentUnits.force)}, length:${JSON.stringify(currentUnits.length)} };`;
+  html = html.replace(/let\s+currentUnits\s*=\s*\{\s*force\s*:\s*['"][^'"]*['"]\s*,\s*length\s*:\s*['"][^'"]*['"]\s*\}\s*;/, unitsLiteral);
+
+  const axlesLiteral = 'let axles = ' + JSON.stringify(axles, null, 2) + ';';
+  html = html.replace(/let\s+axles\s*=\s*\[[\s\S]*?\];/, axlesLiteral);
+
+  const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  a.href = url;
+  a.download = `Traffic_Load_Sim_v0_2_working_${stamp}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
 function exportCsv(){
   if(!lastEnvelope) return;
   const rows=[[`x_${currentUnits.length}`,`max_positive_M_${currentUnits.force}${currentUnits.length}`,`max_negative_M_${currentUnits.force}${currentUnits.length}`,`max_positive_V_${currentUnits.force}`,`max_negative_V_${currentUnits.force}`,`front_x_for_posM_${currentUnits.length}`,`front_x_for_negM_${currentUnits.length}`,`front_x_for_posV_${currentUnits.length}`,`front_x_for_negV_${currentUnits.length}`]];
@@ -662,7 +731,7 @@ function activateTab(id){
 }
 
 document.querySelectorAll('nav .tab').forEach(b=>b.addEventListener('click',()=>activateTab(b.dataset.tab)));
-$('runBtn').addEventListener('click',runEnvelope); $('addAxle').addEventListener('click',()=>{axles.push({x:0,P:0}); renderAxles();});
+$('runBtn').addEventListener('click',runEnvelope); $('saveWorkingFile').addEventListener('click',saveWorkingFile); $('addAxle').addEventListener('click',()=>{axles.push({x:0,P:0}); renderAxles();});
 document.querySelectorAll('[data-vehicle]').forEach(b=>b.addEventListener('click',()=>setVehicle(b.dataset.vehicle)));
 $('loadEx').addEventListener('click',()=>{ setDesignExampleInputsInCurrentUnits(); drawPreview(); });
 $('exportCsv').addEventListener('click',exportCsv);

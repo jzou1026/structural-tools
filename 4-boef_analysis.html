@@ -230,6 +230,8 @@ const DEFAULT_COMBOS = [
   { id:3, name:"ULS D + W", enabled:true, factors:{ D:1.00, L:0, S:0, W:1.40, E:0 } },
   { id:4, name:"SLS D + L", enabled:true, factors:{ D:1.00, L:1.00, S:0, W:0, E:0 } }
 ];
+const DEFAULT_UNITS = "kip/in";
+const DEFAULT_ACTIVE_LC = 1;
 
 const fmt2 = v => Number.isFinite(v) ? (Math.abs(v)<1e-9 ? "0.00" : v.toFixed(2)) : "—";
 const fmt3 = v => Number.isFinite(v) ? (Math.abs(v)<1e-9 ? "0.000" : v.toFixed(3)) : "—";
@@ -699,11 +701,11 @@ function BeamDiagram({nodes,members,result,units,overlay="none",scale=1}) {
 
 function App(){
   const [tab,setTab]=useState("inputs");
-  const [units,setUnits]=useState("kip/in");
+  const [units,setUnits]=useState(DEFAULT_UNITS);
   const [nodes,setNodes]=useState(clone(DEFAULT_NODES));
   const [members,setMembers]=useState(clone(DEFAULT_MEMBERS));
   const [loadCases,setLoadCases]=useState(clone(DEFAULT_LOAD_CASES));
-  const [activeLC,setActiveLC]=useState(1);
+  const [activeLC,setActiveLC]=useState(DEFAULT_ACTIVE_LC);
   const [combos,setCombos]=useState(clone(DEFAULT_COMBOS));
   const [overlay,setOverlay]=useState("none");
   const [selectedMember,setSelectedMember]=useState("1");
@@ -739,12 +741,86 @@ function App(){
   const updateComboFactor=(id,k,v)=>setCombos(p=>p.map(c=>c.id===id?{...c,factors:{...(c.factors||{}),[k]:+v||0}}:c));
   const addCombo=()=>{const id=Math.max(0,...combos.map(c=>c.id))+1; setCombos(p=>[...p,{id,name:`Combo ${id}`,enabled:true,factors:{D:1,L:0,S:0,W:0,E:0}}]);};
   const deleteCombo=(id)=>setCombos(p=>p.length>1?p.filter(c=>c.id!==id):p);
-  const reset=()=>{setNodes(clone(DEFAULT_NODES));setMembers(clone(DEFAULT_MEMBERS));setLoadCases(clone(DEFAULT_LOAD_CASES));setCombos(clone(DEFAULT_COMBOS));setActiveLC(DEFAULT_LOAD_CASES[0].id);};
+  const reset=()=>{setUnits(DEFAULT_UNITS);setNodes(clone(DEFAULT_NODES));setMembers(clone(DEFAULT_MEMBERS));setLoadCases(clone(DEFAULT_LOAD_CASES));setCombos(clone(DEFAULT_COMBOS));setActiveLC(DEFAULT_ACTIVE_LC);};
+
+  const saveWorkingFile = () => {
+    // Save Working File: downloads this same standalone HTML file with the live
+    // input state rewritten into the DEFAULT_* constants. This intentionally
+    // avoids localStorage/sessionStorage so the downloaded file opens by itself.
+    const toCode = value => JSON.stringify(value, null, 2);
+    const replaceConstValue = (source, name, valueCode) => {
+      const token = `const ${name} =`;
+      const start = source.indexOf(token);
+      if (start < 0) return source;
+      let valueStart = start + token.length;
+      while (valueStart < source.length && /\s/.test(source[valueStart])) valueStart++;
+
+      const first = source[valueStart];
+      let valueEnd = valueStart;
+      const closeFor = { "[": "]", "{": "}" };
+
+      if (first === "[" || first === "{") {
+        const close = closeFor[first];
+        let depth = 0;
+        let quote = null;
+        let escaped = false;
+        for (let i = valueStart; i < source.length; i++) {
+          const ch = source[i];
+          if (quote) {
+            if (escaped) escaped = false;
+            else if (ch === "\\") escaped = true;
+            else if (ch === quote) quote = null;
+            continue;
+          }
+          if (ch === "\"" || ch === "'" || ch === "`") { quote = ch; continue; }
+          if (ch === first) depth++;
+          else if (ch === close) {
+            depth--;
+            if (depth === 0) { valueEnd = i + 1; break; }
+          }
+        }
+      } else {
+        let quote = (first === "\"" || first === "'" || first === "`") ? first : null;
+        let escaped = false;
+        for (let i = valueStart + 1; i < source.length; i++) {
+          const ch = source[i];
+          if (quote) {
+            if (escaped) escaped = false;
+            else if (ch === "\\") escaped = true;
+            else if (ch === quote) quote = null;
+          } else if (ch === ";") { valueEnd = i; break; }
+        }
+      }
+
+      while (valueEnd < source.length && /\s/.test(source[valueEnd])) valueEnd++;
+      if (source[valueEnd] === ";") valueEnd++;
+      return source.slice(0, start) + `const ${name} = ${valueCode};` + source.slice(valueEnd);
+    };
+
+    let source = document.documentElement.outerHTML;
+    if (!/^\s*<!doctype/i.test(source)) source = "<!DOCTYPE html>\n" + source;
+
+    source = replaceConstValue(source, "DEFAULT_NODES", toCode(nodes));
+    source = replaceConstValue(source, "DEFAULT_MEMBERS", toCode(members));
+    source = replaceConstValue(source, "DEFAULT_LOAD_CASES", toCode(loadCases));
+    source = replaceConstValue(source, "DEFAULT_COMBOS", toCode(combos));
+    source = replaceConstValue(source, "DEFAULT_UNITS", toCode(units));
+    source = replaceConstValue(source, "DEFAULT_ACTIVE_LC", toCode(activeLC));
+
+    const blob = new Blob([source], { type:"text/html;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `BOEF_v0_3_1_working_${new Date().toISOString().slice(0,10)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  };
 
   const Inputs = <div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:"1.5rem"}}>
       <div style={{marginRight:"auto"}}><h1 style={{fontSize:22}}>Finite-Length BOEF Inputs</h1><p style={{color:CLR.muted,fontSize:12}}>Numerically models a finite beam on a continuous Winkler foundation.</p></div>
       <span style={{fontSize:12,color:CLR.muted}}>Units:</span><select style={{...S.select,width:100}} value={units} onChange={e=>setUnits(e.target.value)}>{Object.keys(UNIT_SETS).map(u=><option key={u}>{u}</option>)}</select>
+      <button style={S.btn("secondary")} onClick={saveWorkingFile}>💾 Save Working File</button>
       <button style={S.btn("secondary")} onClick={reset}>↺ Reset Example</button>
       <button style={S.btn("primary")} onClick={()=>setTab("results")}>▶ Analyze All Load Cases</button>
     </div>

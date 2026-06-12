@@ -208,6 +208,9 @@
       { id:3, near:"C", far:"D", L:5000, wDL:20.304, wSDL:6.912, wLL:17.28 }
     ];
 
+    const DEFAULT_GEOMETRY_INPUT_MODE = "global";
+    const DEFAULT_RESULT_UNITS = "engineering";
+
     // ── MATH HELPERS ──────────────────────────────────────────────────────────
     function gaussianElim(A, b) {
       const n = b.length;
@@ -833,17 +836,17 @@
     function App() {
       const [tab, setTab] = useState("inputs");
       const tabs = [{id:"inputs", label:"Inputs"}, {id:"results", label:"Results"}, {id:"theory", label:"Theory"}];
-      const [frameElements, setFrameElements] = useState(DEFAULT_FRAME_ELEMENTS);
-      const [nodes, setNodes] = useState(DEFAULT_NODES);
-      const [spans, setSpans] = useState(DEFAULT_SPANS);
-      const [props, setProps] = useState(DEFAULT_PROPS);
-      const [geometryInputMode, setGeometryInputMode] = useState("global");
-      const [resultUnits, setResultUnits] = useState("engineering");
+      const [frameElements, setFrameElements] = useState(() => DEFAULT_FRAME_ELEMENTS.map(fe => ({ ...fe })));
+      const [nodes, setNodes] = useState(() => DEFAULT_NODES.map(n => ({ ...n })));
+      const [spans, setSpans] = useState(() => DEFAULT_SPANS.map(sp => ({ ...sp })));
+      const [props, setProps] = useState(() => ({ ...DEFAULT_PROPS }));
+      const [geometryInputMode, setGeometryInputMode] = useState(DEFAULT_GEOMETRY_INPUT_MODE);
+      const [resultUnits, setResultUnits] = useState(DEFAULT_RESULT_UNITS);
       const [result, setResult] = useState(null);
 
-      const nextFrameElementId = useRef(3);
-      const nextNodeId = useRef(5);
-      const nextSpanId = useRef(4);
+      const nextFrameElementId = useRef(Math.max(0, ...DEFAULT_FRAME_ELEMENTS.map(fe => +fe.id || 0)) + 1);
+      const nextNodeId = useRef(Math.max(0, ...DEFAULT_NODES.map(n => +n.id || 0)) + 1);
+      const nextSpanId = useRef(Math.max(0, ...DEFAULT_SPANS.map(sp => +sp.id || 0)) + 1);
 
       const updateFrameElement = (id, f, v) => setFrameElements(p => p.map(fe => fe.id===id ? {...fe,[f]:v} : fe));
       const addFrameElement = () => { nextFrameElementId.current++; setFrameElements(p => [...p, {id:nextFrameElementId.current, name:`CC-300x300-${nextFrameElementId.current}`, B:300, H:300, psi:1.00}]); };
@@ -984,6 +987,40 @@
         window.print();
       };
 
+      const saveWorkingFile = () => {
+        // Generate a standalone HTML copy with the exact same app code, but with
+        // the current model inputs rewritten into the DEFAULT_* constants.
+        const safeJson = value => JSON.stringify(value, null, 2).replace(/</g, "\\u003c");
+        const replaceDefault = (source, name, value) => {
+          const serialized = typeof value === "string" ? JSON.stringify(value) : safeJson(value);
+          const pattern = new RegExp(`const\\s+${name}\\s*=\\s*[\\s\\S]*?;`);
+          return source.replace(pattern, `const ${name} = ${serialized};`);
+        };
+
+        const doc = document.cloneNode(true);
+        const root = doc.getElementById("root");
+        if (root) root.innerHTML = "";
+
+        let html = "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+        html = replaceDefault(html, "DEFAULT_PROPS", props);
+        html = replaceDefault(html, "DEFAULT_FRAME_ELEMENTS", frameElements);
+        html = replaceDefault(html, "DEFAULT_NODES", nodes);
+        html = replaceDefault(html, "DEFAULT_SPANS", spans);
+        html = replaceDefault(html, "DEFAULT_GEOMETRY_INPUT_MODE", geometryInputMode);
+        html = replaceDefault(html, "DEFAULT_RESULT_UNITS", resultUnits);
+
+        const blob = new Blob([html], { type:"text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+        a.href = url;
+        a.download = `Two_Way_Slabs_v0_8_9_working_${stamp}.html`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
+
       const reportDate = new Date().toLocaleString();
       const geometryNodes = getGeometryNodes();
       const inputPreviewNodes = enrichNodesWithFrameElements(geometryNodes, frameElements).sort((a, b) => (+a.x || 0) - (+b.x || 0));
@@ -1009,9 +1046,10 @@
             {tab === "theory" && <TheoryView />}
             {tab === "inputs" && (
               <div>
-                <div style={{ display:"flex", alignItems:"center", marginBottom:"1.5rem" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"1.5rem" }}>
                   <div style={{ fontSize:20, fontWeight:800 }}>Model Inputs</div>
-                  <button style={{ ...S.btn("primary"), marginLeft:"auto", padding:"8px 24px", fontSize:13 }} onClick={analyze}>▶ Analyze</button>
+                  <button style={{ ...S.btn("ghost"), marginLeft:"auto", padding:"8px 18px", fontSize:13 }} onClick={saveWorkingFile}>💾 Save Working File</button>
+                  <button style={{ ...S.btn("primary"), padding:"8px 24px", fontSize:13 }} onClick={analyze}>▶ Analyze</button>
                 </div>
 
                 <div style={{ ...S.card, marginBottom:"1.5rem" }}>

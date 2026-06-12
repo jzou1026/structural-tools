@@ -270,6 +270,7 @@
       legsY: 2, legsZ: 2, closedTies: true, thetaDeg: 35, betaOverride: 0, lambda: 1.0,
       maxSpacing: 300, aggregateSize: 20, torsionCenterlineCover: 40, considerTorsion: true
     };
+    const DEFAULT_BENDING_MODE = "My";
 
     // ── FORMATTING ────────────────────────────────────────────────────────────────
     const fmt0 = v => (typeof v==="number" && isFinite(v)) ? v.toFixed(0) : "—";
@@ -1613,11 +1614,11 @@
       ];
 
       const [col, setCol]     = useState(DEFAULT_COL);
-      const [bendingMode, setBendingMode] = useState("My");
+      const [bendingMode, setBendingMode] = useState(DEFAULT_BENDING_MODE);
       const updateCol = (f, v) => setCol(p => ({ ...p, [f]: isNaN(+v) ? v : +v }));
 
       const [layers, setLayers] = useState(DEFAULT_LAYERS);
-      const nextLayerId = useRef(DEFAULT_LAYERS.length + 1);
+      const nextLayerId = useRef(Math.max(0, ...DEFAULT_LAYERS.map(l => +l.id || 0)) + 1);
 
       const addLayer = () => {
         nextLayerId.current++;
@@ -1665,7 +1666,7 @@
 
       // Demands — multi-row
       const [demands, setDemands] = useState(DEFAULT_DEMANDS);
-      const nextDemandId = useRef(DEFAULT_DEMANDS.length + 1);
+      const nextDemandId = useRef(Math.max(0, ...DEFAULT_DEMANDS.map(d => +d.id || 0)) + 1);
       const addDemand = () => {
         nextDemandId.current++;
         setDemands(p => [...p, { id: nextDemandId.current, label:`LC${nextDemandId.current}`, Pf:1000000, Mfz:150000000, Mfy:150000000, Vfy:120000, Vfz:80000, Tf:25000000 }]);
@@ -1727,6 +1728,45 @@
         downloadCsv(`column_interaction_v0_7_9_results_${stamp}.csv`, csv);
       };
 
+      // Save a clean working-copy HTML file by rewriting the source-code defaults.
+      // This intentionally generates another standalone HTML app with the same code,
+      // but with the current input state embedded as the new DEFAULT_* constants.
+      const saveWorkingFile = () => {
+        try {
+          const cloneDoc = document.documentElement.cloneNode(true);
+          const root = cloneDoc.querySelector("#root");
+          if (root) root.innerHTML = "";
+          let html = "<!DOCTYPE html>\n" + cloneDoc.outerHTML;
+
+          const jsConst = (name, value) => `const ${name} = ${JSON.stringify(value, null, 2)};`;
+          const replacements = [
+            ["DEFAULT_COL", jsConst("DEFAULT_COL", col), /const DEFAULT_COL\s*=\s*\{[\s\S]*?\};/],
+            ["DEFAULT_LAYERS", jsConst("DEFAULT_LAYERS", layers), /const DEFAULT_LAYERS\s*=\s*\[[\s\S]*?\];/],
+            ["DEFAULT_DEMANDS", jsConst("DEFAULT_DEMANDS", demands), /const DEFAULT_DEMANDS\s*=\s*\[[\s\S]*?\];/],
+            ["DEFAULT_SHEAR_REINF", jsConst("DEFAULT_SHEAR_REINF", shearReinf), /const DEFAULT_SHEAR_REINF\s*=\s*\{[\s\S]*?\};/],
+            ["DEFAULT_BENDING_MODE", jsConst("DEFAULT_BENDING_MODE", bendingMode), /const DEFAULT_BENDING_MODE\s*=\s*[\s\S]*?;/]
+          ];
+
+          replacements.forEach(([name, replacement, pattern]) => {
+            if (!pattern.test(html)) throw new Error(`${name} block was not found in the HTML source.`);
+            html = html.replace(pattern, replacement);
+          });
+
+          const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          const stamp = new Date().toISOString().slice(0, 10);
+          a.href = url;
+          a.download = `Column_Interaction_working_${stamp}.html`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          alert(`Save Working File failed: ${err.message}`);
+        }
+      };
+
       return (
         <div style={S.app}>
           {/* ── HEADER ── */}
@@ -1764,6 +1804,9 @@
                       <option value="Mz">P–Mz (Weak Axis)</option>
                       <option value="Both">Both</option>
                     </select>
+                    <button style={{ ...S.btn("ghost"), padding:"8px 18px", fontSize:12 }} onClick={saveWorkingFile}>
+                      💾 Save Working File
+                    </button>
                     <button style={{ ...S.btn("primary"), padding:"8px 24px", fontSize:13 }} onClick={analyze}>
                       ▶ Run P-M-V-T Capacity Check
                     </button>
