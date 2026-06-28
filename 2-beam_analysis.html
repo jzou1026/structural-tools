@@ -717,6 +717,39 @@
             }).join(" ");
             return <polyline key={`defl-${idx}`} points={pts} fill="none" stroke={CLR.yellow} strokeWidth={2.2} strokeDasharray="6,4"/>;
           })}
+          {result && (overlayMode === "sfd" || overlayMode === "bmd") && (() => {
+            const key = overlayMode === "sfd" ? "V" : "M";
+            const seriesKey = overlayMode === "sfd" ? "sfd" : "bmd";
+            const color = overlayMode === "sfd" ? CLR.teal : CLR.orange;
+            const label = overlayMode === "sfd" ? "SFD" : "BMD";
+            const allValues = (result.memberResults || []).flatMap(mr => (mr[seriesKey] || []).map(p => +p[key] || 0));
+            const maxAbs = Math.max(1e-12, ...allValues.map(v => Math.abs(v)));
+            const svgScale = (+overlayScale || 1) * 7 / maxAbs;
+            return (result.memberResults || []).map((mr, idx) => {
+              const nearX = nodeMap[String(mr.near || "").trim()];
+              const farX  = nodeMap[String(mr.far || "").trim()];
+              const data = mr[seriesKey] || [];
+              if (nearX === undefined || farX === undefined || !data.length) return null;
+              const sign = farX >= nearX ? 1 : -1;
+              const pts = data.map(p => {
+                const gx = nearX + sign*(+p.x || 0);
+                const sx = toSvgX(gx);
+                const sy = beamY - (+p[key] || 0) * svgScale;
+                return `${sx},${sy}`;
+              }).join(" ");
+              const areaPath = data.map((p, j) => {
+                const gx = nearX + sign*(+p.x || 0);
+                const sx = toSvgX(gx);
+                const sy = beamY - (+p[key] || 0) * svgScale;
+                return `${j === 0 ? "M" : "L"} ${sx},${j === 0 ? beamY : sy} ${j === 0 ? "L " + sx + "," + sy : ""}`;
+              }).join(" ") + ` L ${toSvgX(farX)},${beamY} Z`;
+              return <g key={`${seriesKey}-${idx}`}>
+                <path d={areaPath} fill={color+"24"}/>
+                <polyline points={pts} fill="none" stroke={color} strokeWidth={2.1} strokeLinejoin="round"/>
+                {idx === 0 && <text x={PAD} y={beamY-43} fill={color} fontSize="10" fontWeight="800">{label} overlay</text>}
+              </g>;
+            });
+          })()}
           {validNodes.map((n, i) => {
             const sx = toSvgX(+n.x || 0);
             const hasPz = Math.abs(+n.Pz || 0) > 1e-10;
@@ -1113,6 +1146,7 @@
       const [memberDiagramType, setMemberDiagramType] = useState("V");
       const [overlayMode, setOverlayMode] = useState("none");
       const [overlayScale, setOverlayScale] = useState(5);
+      const [csvDivisions, setCsvDivisions] = useState(10);
       const caseList = result && Array.isArray(result.cases) ? result.cases : [];
       const activeOutput = caseList.find(c => String(c.loadCase.id) === String(selectedResultId)) || caseList[0];
       const activeResult = activeOutput ? activeOutput.result : null;
@@ -1137,6 +1171,71 @@
       const { rotations, memberResults, reactions } = activeResult;
       const activeMem = memberResults[activeSpan];
       const reportDate = new Date().toLocaleDateString();
+      const csvEscape = value => {
+        if (value === null || value === undefined) return "";
+        const s = String(value);
+        return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      };
+      const downloadTextFile = (filename, content, mimeType="text/csv;charset=utf-8") => {
+        const blob = new Blob([content], { type:mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
+      const interpolateSeries = (series, yKey, xTarget) => {
+        const data = (series || []).filter(p => Number.isFinite(+p.x)).slice().sort((a,b) => (+a.x || 0) - (+b.x || 0));
+        if (!data.length) return "";
+        if (xTarget <= (+data[0].x || 0)) return +data[0][yKey] || 0;
+        if (xTarget >= (+data[data.length-1].x || 0)) return +data[data.length-1][yKey] || 0;
+        for (let i=1; i<data.length; i++) {
+          const x0 = +data[i-1].x || 0;
+          const x1 = +data[i].x || 0;
+          if (xTarget <= x1) {
+            const y0 = +data[i-1][yKey] || 0;
+            const y1 = +data[i][yKey] || 0;
+            const t = Math.abs(x1-x0) > 1e-12 ? (xTarget-x0)/(x1-x0) : 0;
+            return y0 + t*(y1-y0);
+          }
+        }
+        return "";
+      };
+      const exportDiagramCsv = () => {
+        if (!activeResult || !(activeResult.memberResults || []).length) return;
+        const divisions = Math.max(1, Math.round(+csvDivisions || 10));
+        const rows = [];
+        rows.push([
+          "Result Set", "Span", "Division", "x", `x unit (${u.dist})`,
+          "Shear V", `V unit (${u.force})`,
+          "Moment M", `M unit (${u.moment})`,
+          "Deflection v", `v unit (${u.settle})`,
+          "Rotation theta", "theta unit (rad)"
+        ]);
+        (activeResult.memberResults || []).forEach(mr => {
+          for (let i=0; i<=divisions; i++) {
+            const x = ((+mr.L || 0) * i) / divisions;
+            rows.push([
+              activeOutput?.loadCase?.name || "Result",
+              mr.name || `${mr.near || ""}-${mr.far || ""}`,
+              i,
+              x,
+              u.dist,
+              interpolateSeries(mr.sfd, "V", x), u.force,
+              interpolateSeries(mr.bmd, "M", x), u.moment,
+              interpolateSeries(mr.defl, "vLocal", x), u.settle,
+              interpolateSeries(mr.defl, "thetaLocal", x), "rad"
+            ]);
+          }
+        });
+        const csv = rows.map(row => row.map(csvEscape).join(",")).join("\n");
+        const safeName = String(activeOutput?.loadCase?.name || "Result").replace(/[^a-z0-9_-]+/gi, "_").replace(/^_+|_+$/g, "") || "Result";
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        downloadTextFile(`Beams_${safeName}_diagram_data_${divisions}_divisions_${timestamp}.csv`, csv);
+      };
       const printReport = () => {
         setTimeout(() => window.print(), 50);
       };
@@ -1155,6 +1254,9 @@
               <select style={{ ...S.select, width:240 }} value={activeOutput?.loadCase?.id || ""} onChange={e=>setSelectedResultId(e.target.value)}>
                 {caseList.map(c => <option key={c.loadCase.id} value={c.loadCase.id}>{c.loadCase.name} — {c.loadCase.type}</option>)}
               </select>
+              <span style={{ fontSize:11, color:CLR.muted }}>CSV divisions:</span>
+              <input style={{ ...S.input, width:72 }} type="number" min="1" step="1" value={csvDivisions} onChange={e=>setCsvDivisions(Math.max(1, Math.round(+e.target.value || 10)))}/>
+              <button style={{ ...S.btn("ghost"), padding:"8px 18px", fontSize:13 }} onClick={exportDiagramCsv}>📊 Export Diagram CSV</button>
               <button style={{ ...S.btn("primary"), padding:"8px 20px", fontSize:13 }} onClick={printReport}>🖨 Print / Save PDF Report</button>
             </div>
           </div>
@@ -1177,6 +1279,8 @@
                 <select style={{ ...S.select, width:180 }} value={overlayMode} onChange={e=>setOverlayMode(e.target.value)}>
                   <option value="none">None</option>
                   <option value="deformed">Deflected shape</option>
+                  <option value="sfd">Shear force diagram</option>
+                  <option value="bmd">Bending moment diagram</option>
                 </select>
                 Scale
                 <input style={{ ...S.input, width:80 }} type="number" step="0.5" value={overlayScale} onChange={e=>setOverlayScale(+e.target.value || 1)}/>

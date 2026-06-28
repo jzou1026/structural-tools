@@ -1,0 +1,384 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SAFE-Lite Shell FEM Example 12.6 Two-Way-Style Strips</title><style>
+:root{--bg:#0d1117;--p:#161b22;--c:#1f2633;--b:#30363d;--t:#e6edf3;--m:#8b949e;--a:#58a6ff;--g:#3fb950;--r:#f85149;--y:#d29922}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font-family:Consolas,monospace;font-size:13px}header{background:var(--p);border-bottom:1px solid var(--b);padding:14px 22px;display:flex;gap:20px;align-items:center;position:sticky;top:0;z-index:2}.brand{font-size:18px;font-weight:900;color:var(--a)}button,input,select,textarea{font:inherit}button{background:#21262d;color:var(--t);border:1px solid var(--b);border-radius:6px;padding:8px 12px;cursor:pointer;font-weight:700}button.primary{background:var(--a);border-color:var(--a);color:#00111f}button.good{background:#16321e;border-color:var(--g);color:var(--g)}input,textarea,select{width:100%;background:#0d1117;color:var(--t);border:1px solid var(--b);border-radius:5px;padding:6px}textarea{min-height:96px}.tabs{margin-left:auto;display:flex;gap:6px}.tab.active{border-color:var(--a);color:var(--a)}main{max-width:1580px;margin:auto;padding:18px}.grid{display:grid;gap:14px}.g2{grid-template-columns:420px 1fr}.g3{grid-template-columns:repeat(3,1fr)}.card{background:var(--c);border:1px solid var(--b);border-radius:9px;padding:14px;margin-bottom:14px}.h{color:var(--a);font-weight:900;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}.small{color:var(--m);font-size:11px;line-height:1.5}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pill{color:var(--a);background:#58a6ff22;border:1px solid #58a6ff66;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:800}.view.hide{display:none}.svgbox{background:#0d1117;border:1px solid var(--b);border-radius:8px;overflow:hidden}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px solid var(--b);padding:6px;text-align:center}th{color:var(--m);background:#161b22}.mono{white-space:pre-wrap;background:#0d1117;border:1px solid var(--b);border-radius:7px;padding:10px;overflow:auto;line-height:1.45}.warn{border-left:3px solid var(--y);background:#d2992220;padding:8px;margin:8px 0;color:#e6c56a}@media(max-width:1000px){.g2,.g3{grid-template-columns:1fr}header{position:relative;display:block}.tabs{margin-top:8px;overflow:auto}}@media print{header,.screen{display:none}body{background:#fff;color:#111}.card,.svgbox,.mono{background:#fff;color:#111;border-color:#aaa}*{color:#111!important}}
+
+.resultsGrid{display:grid;grid-template-columns:minmax(760px,2.3fr) minmax(360px,1fr);gap:14px;align-items:start}.contourCard .svgbox{min-height:560px;position:relative}.contourCard svg{height:560px;display:block}.colorScale{margin-top:10px}.colorScaleBar{height:18px;border:1px solid var(--b);border-radius:3px;background:linear-gradient(90deg,hsl(240,85%,55%),hsl(200,85%,55%),hsl(160,85%,55%),hsl(120,85%,55%),hsl(80,85%,55%),hsl(40,85%,55%),hsl(0,85%,55%))}.colorScaleTicks{display:flex;justify-content:space-between;gap:8px;margin-top:4px;font-size:10px;color:var(--m);font-variant-numeric:tabular-nums}.colorScaleTitle{font-size:11px;color:var(--m);margin-bottom:4px}.hoverTip{position:fixed;z-index:9999;pointer-events:none;background:#05070a;color:#e6edf3;border:1px solid #58a6ff;border-radius:7px;padding:8px 10px;font-size:12px;line-height:1.45;box-shadow:0 8px 24px #000a;display:none;white-space:pre;font-family:Consolas,monospace}.stripGrid{display:grid;grid-template-columns:1fr;gap:14px}.stripSvg{background:#0d1117;border:1px solid var(--b);border-radius:8px;overflow:hidden;margin-top:8px}.stripSvg svg{display:block}.stripSelect{max-width:360px}.stripNote{color:var(--m);font-size:11px;line-height:1.5;margin-top:6px}@media(max-width:1200px){.resultsGrid,.stripGrid{grid-template-columns:1fr}.contourCard .svgbox{min-height:440px}.contourCard svg{height:440px}}
+
+.designTableCard{padding:0;overflow:hidden}.designTableHead{background:#1b2434;color:#58a6ff;font-weight:900;text-transform:uppercase;letter-spacing:.16em;padding:16px 20px;border-bottom:1px solid var(--b)}.designTableBody{padding:0}.designTableTools{padding:12px 20px;background:#161b22;border-bottom:1px solid var(--b)}.designTable{width:100%;border-collapse:collapse;font-size:12px}.designTable th{background:#22272e;color:#9fb1c1;text-transform:uppercase;font-size:10px;letter-spacing:.08em;border-bottom:1px solid var(--b);padding:7px 8px}.designTable td{background:#1f2633;color:#fff;border-bottom:1px solid #263244;padding:7px 8px;text-align:center;font-weight:700}.designTable tr:nth-child(even) td{background:#1b2231}.designTable .spanCell{color:#58a6ff}.designTable .ok{color:#3fb950}.designTable .ng{color:#f85149}.designTable .warnTxt{color:#d29922}.designTableNote{padding:10px 20px;color:var(--m);font-size:11px;line-height:1.5;background:#161b22;border-top:1px solid var(--b)}.designTablesGrid{display:grid;gap:14px}.tableScroll{overflow:auto;max-height:420px}.compactSelect{max-width:360px}
+
+
+/* ── Engineer-facing theory/help page, Two Way Slabs v0.8.9 style ───────── */
+.theoryPage{display:grid;gap:14px}.theoryHero{background:linear-gradient(180deg,#1f2633,#171e2b);border:1px solid var(--b);border-radius:9px;padding:18px;margin-bottom:14px}.theoryTitle{font-size:19px;font-weight:900;color:var(--a);letter-spacing:.03em;margin-bottom:8px}.theoryLead{color:var(--m);font-size:13px;line-height:1.7;margin:0 0 10px}.theoryBadge{display:inline-block;color:var(--a);background:#58a6ff22;border:1px solid #58a6ff66;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:800;margin:3px 6px 3px 0}.theoryGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.theoryGrid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.theoryH{color:var(--a);font-weight:900;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}.theorySub{color:var(--t);font-weight:900;margin:12px 0 6px}.eqBox{white-space:pre-wrap;background:#0d1117;border:1px solid var(--b);border-radius:7px;padding:11px 12px;overflow:auto;line-height:1.55;color:var(--g);font-family:Consolas,monospace;font-size:12px;margin:8px 0 12px}.theoryNote{border-left:3px solid var(--y);background:#d2992220;color:#e6c56a;border-radius:6px;padding:9px 10px;margin:9px 0;line-height:1.55}.theoryList{margin:0 0 10px 18px;color:var(--m);line-height:1.65;font-size:13px}.theoryList li{margin-bottom:5px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}.flow div{background:#0d1117;border:1px solid var(--b);border-radius:7px;padding:10px;text-align:center;color:var(--t);font-weight:800}.flow span{display:block;color:var(--m);font-size:10px;font-weight:500;margin-top:4px}.miniTable{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}.miniTable th{background:#22272e;color:#9fb1c1;text-transform:uppercase;font-size:10px;letter-spacing:.08em;padding:7px}.miniTable td{background:#0d1117;border-bottom:1px solid var(--b);padding:7px;color:var(--m);text-align:left}.miniTable td:first-child{color:var(--a);font-weight:900}.limitations{border-left:3px solid var(--r);background:#f8514920;color:#ffb3ae;border-radius:6px;padding:9px 10px;margin-top:9px;line-height:1.55}@media(max-width:1100px){.theoryGrid,.theoryGrid3,.flow{grid-template-columns:1fr}}
+
+</style></head><body><div id="hoverTip" class="hoverTip"></div><header><div><div class="brand">SAFE-Lite 2D Shell Slab FEM — Example 12.6 Two-Way-Style Strips</div><div class="small">Q4 Mindlin plate elements · sparse CG solver · two-way-style aggregate BMD/SFD</div></div><div class="tabs"><button class="tab active" onclick="tab('model')">Model</button><button class="tab" onclick="tab('mesh')">Mesh</button><button class="tab" onclick="tab('results')">Results</button><button class="tab" onclick="tab('theory')">Theory</button></div></header><main>
+<section id="model" class="view"><div class="row screen"><button class="primary" onclick="loadEx()">Reset to Example 12.6</button><button class="good" onclick="runAll()">Mesh + Analyze</button><button onclick="saveJSON()">Save JSON</button><input id="file" type="file" accept=".json" style="display:none" onchange="loadJSON(event)"><button onclick="file.click()">Load JSON</button><span class="pill" id="status">Ready</span></div><div class="grid g2"><div>
+<div class="card"><div class="h">Exact default properties</div><div class="grid g3"><label>f′c MPa<input id="fc" type="number" value="30"></label><label>fy MPa<input id="fy" type="number" value="400"></label><label>Ec MPa, 0=auto<input id="Ec" type="number" value="0"></label><label>ν<input id="nu" type="number" value="0.2" step=".01"></label><label>γc kN/m³<input id="gam" type="number" value="24"></label><label>h mm<input id="h" type="number" value="180"></label><label>d mm<input id="d" type="number" value="140"></label><label>SDL kPa<input id="SDL" type="number" value="1.44"></label><label>LL kPa<input id="LL" type="number" value="3.6"></label><label>D factor<input id="Df" type="number" value="1.25"></label><label>L factor<input id="Lf" type="number" value="1.5"></label><label>As existing mm²/m<input id="Aex" type="number" value="0"></label></div></div>
+<div class="card"><div class="h">Mesh / supports</div><div class="grid g3"><label>Max 1-1 mesh mm<input id="mx" type="number" value="333"></label><label>Max 2-2 mesh mm<input id="my" type="number" value="333"></label><label>Tolerance mm<input id="tol" type="number" value="1"></label><label>Column L top mm<input id="Lt" type="number" value="3000"></label><label>Column L bottom mm<input id="Lb" type="number" value="3000"></label><label>Far end<select id="far"><option value="fixed">Fixed</option><option value="pinned">Pinned</option></select></label><label>Wall thickness mm<input id="tw" type="number" value="200"></label><label>Deform scale<input id="scale" type="number" value="80"></label><label>CG tolerance<input id="cgtol" type="number" value="1e-7"></label></div><div class="warn">Default mesh is 333 mm. Loads include self-weight dead load, superimposed dead load, and live load. Aggregate BMD/SFD graphics use the original Two Way Slabs style: filled diagrams, zero axis, dashed gridlines, and mono axis labels.</div></div>
+</div><div><div class="card"><div class="h">Geometry objects</div><div class="small">Joints CSV: ID,x_mm,y_mm,z_mm. Rectangles CSV: ID,oppositeJointA,oppositeJointC. Columns CSV: ID,joint,cX,cY,Ltop,Lbottom. Walls CSV: ID,startJoint,endJoint,thickness,Ltop,Lbottom.</div><label>Joints</label><textarea id="joints"></textarea><label>Rectangles</label><textarea id="areas"></textarea><label>Columns</label><textarea id="cols"></textarea><label>Walls</label><textarea id="walls"></textarea><label>Design strips</label><textarea id="strips"></textarea><div class="small">Design strips CSV: ID,direction,alongStart_mm,alongEnd_mm,stripFrom_mm,stripTo_mm.</div></div></div></div><div class="card"><div class="h">Plan preview</div><div class="svgbox"><svg id="plan" viewBox="0 0 1000 680" width="100%"></svg></div></div></section>
+<section id="mesh" class="view hide"><div class="row screen"><button class="primary" onclick="mesh()">Generate Mesh</button><button class="good" onclick="analyze()">Analyze</button><span class="pill" id="meshstat">No mesh</span></div><div class="card"><div class="h">Shell mesh</div><div class="svgbox"><svg id="meshsvg" viewBox="0 0 1000 680" width="100%"></svg></div></div><div class="grid g2"><div class="card"><div class="h">Solver log</div><div id="log" class="mono">No run.</div></div><div class="card"><div class="h">Mesh stats</div><div id="meshinfo" class="mono">No mesh.</div></div></div></section>
+<section id="results" class="view hide"><div class="row screen"><button class="good" onclick="analyze()">Re-analyze</button><label style="width:260px">Contour<select id="rtype" onchange="drawResults()"><option value="w">Deflection w mm</option><option value="M11">M11 kN·m/m</option><option value="M22">M22 kN·m/m</option><option value="M12">M12 kN·m/m</option><option value="V13">V13 kN/m</option><option value="V23">V23 kN/m</option><option value="As1b">As 1 bottom</option><option value="As1t">As 1 top</option><option value="As2b">As 2 bottom</option><option value="As2t">As 2 top</option></select></label><button onclick="csv()">Export CSV</button></div><div class="resultsGrid"><div class="card contourCard"><div class="h">Contour</div><div class="svgbox"><svg id="ressvg" viewBox="0 0 1000 680" width="100%" preserveAspectRatio="xMidYMid meet" onmousemove="contourHover(event)" onmouseleave="hideHover()"></svg></div><div id="legend" class="small"></div></div><div class="card"><div class="h">Extremes</div><div id="ext" class="mono">No results.</div></div></div><div class="card"><div class="h">Design strip aggregate BMD / SFD</div><div class="row screen"><button class="primary" onclick="calcDesignStrips()">Calculate Design Strips</button><label class="stripSelect">Design strip<select id="stripPick" onchange="drawStripCharts()"></select></label></div><div class="stripNote">Graphics restored to the original Two Way Slabs v0.8.9 diagram style: shaded diagram area, central zero axis, dashed horizontal guide lines, left value ticks, and station labels along the bottom.</div><div class="stripGrid"><div><div class="h" style="margin-top:10px">Aggregate Bending Moment Diagram</div><div class="stripSvg"><svg id="stripBMD" viewBox="0 0 900 240" width="100%"></svg></div></div><div><div class="h" style="margin-top:10px">Aggregate Shear Force Diagram</div><div class="stripSvg"><svg id="stripSFD" viewBox="0 0 900 240" width="100%"></svg></div></div></div><div id="stripSummary" class="mono" style="margin-top:10px">No design strip results.</div></div>
+<div class="designTablesGrid">
+  <div class="card designTableCard">
+    <div class="designTableHead">Table 1: Element Results</div>
+    <div class="designTableBody tableScroll">
+      <table class="designTable">
+        <thead><tr><th>Elem</th><th>x m</th><th>y m</th><th>w</th><th>M11</th><th>M22</th><th>M12</th><th>V13</th><th>V23</th><th>As1b</th><th>As1t</th><th>As2b</th><th>As2t</th></tr></thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>
+    <div class="designTableNote">Raw shell element-centre results. Hover the contour plot for local M11, M22, M12, V13, and V23 values.</div>
+  </div>
+
+  <div class="card designTableCard">
+    <div class="designTableHead">Table 2: Bending Moment Design</div>
+    <div class="designTableTools row screen"><label class="compactSelect">Design strip<select id="tableStripPick" onchange="drawDesignTables()"></select></label></div>
+    <div class="designTableBody tableScroll">
+      <table class="designTable">
+        <thead><tr><th>Span</th><th>Loc</th><th>Global Station (mm)</th><th>M_f (kN·m)</th><th>Add. Area (mm²/m)</th><th>15M @ mm</th><th>20M @ mm</th><th>25M @ mm</th></tr></thead>
+        <tbody id="bendTbl"><tr><td colspan="8">Analyze and calculate design strips.</td></tr></tbody>
+      </table>
+    </div>
+    <div class="designTableNote">Bending table is generated only for the selected design strip. Top design moments are taken at column faces; bottom design moments are taken as the maximum positive moment between column faces. Add. Area is based on aggregate strip moment divided by strip width, using the app's existing flexural steel calculation.</div>
+  </div>
+
+  <div class="card designTableCard">
+    <div class="designTableHead">Table 3: One Way Shear Design</div>
+    <div class="designTableTools row screen"><label class="compactSelect">Design strip<select id="tableStripPick2" onchange="syncTablePick(2)"></select></label></div>
+    <div class="designTableBody tableScroll">
+      <table class="designTable">
+        <thead><tr><th>Span</th><th>Loc</th><th>Global Station (mm)</th><th>V_f (kN)</th><th>d_v (mm)</th><th>V_c (kN)</th><th>Check</th></tr></thead>
+        <tbody id="oneWayTbl"><tr><td colspan="7">Analyze and calculate design strips.</td></tr></tbody>
+      </table>
+    </div>
+    <div class="designTableNote">One-way shear uses the selected strip's aggregate shear diagram at dv from column faces. Vc is calculated using Equation 11.6: Vc = φc λ β √f′c bw dv, with β = 230/(1000 + dv), β ≥ 0.05, λ = 1.0, and √f′c capped at 8 MPa.</div>
+  </div>
+
+  <div class="card designTableCard">
+    <div class="designTableHead">Table 4: Two Way Shear Design</div>
+    <div class="designTableTools row screen"><label class="compactSelect">Design strip<select id="tableStripPick3" onchange="syncTablePick(3)"></select></label></div>
+    <div class="designTableBody tableScroll">
+      <table class="designTable">
+        <thead><tr><th>Node</th><th>Two Way Shear, V_f (kN)</th><th>M_ps (kN·m)</th><th>M_top (kN·m)</th><th>M_bottom (kN·m)</th><th>Method Note</th></tr></thead>
+        <tbody id="twoWayTbl"><tr><td colspan="6">Analyze and calculate design strips.</td></tr></tbody>
+      </table>
+    </div>
+    <div class="designTableNote">SAFE-like punching quantities are computed from FE spring reactions at columns inside the selected strip, with load inside the critical perimeter subtracted from the vertical reaction. Unbalanced moments are estimated from column rotational spring reactions.</div>
+  </div>
+</div></section>
+<section id="theory" class="view hide"><div class="theoryPage">
+  <div class="theoryHero">
+    <div class="theoryTitle">Theory and Engineering Notes: SAFE-Lite 2D Shell Slab FEM</div>
+    <p class="theoryLead">This section is written for engineers reviewing or modifying the program. It explains how the browser app turns an entered slab model into finite-element shell forces, design strip diagrams, and SAFE-style design tables.</p>
+    <div>
+      <span class="theoryBadge">Q4 Mindlin plate shell</span>
+      <span class="theoryBadge">Sparse conjugate-gradient solver</span>
+      <span class="theoryBadge">Column/wall spring supports</span>
+      <span class="theoryBadge">M11 / M22 / M12 contours</span>
+      <span class="theoryBadge">Design strip BMD/SFD</span>
+      <span class="theoryBadge">Eq. 11.6 one-way shear</span>
+    </div>
+    <div class="theoryNote"><b>Scope:</b> this page documents the current implementation. It does not change the solver, design equations, or results. Final engineering design should still be checked independently.</div>
+  </div>
+
+  <div class="card">
+    <div class="theoryH">1. Program Workflow</div>
+    <p class="theoryLead">The app follows the same conceptual workflow as a commercial slab finite-element model: define geometry and material properties, generate a shell mesh, solve the elastic model, recover element forces, integrate forces over design strips, and summarize design checks in tabular form.</p>
+    <div class="flow">
+      <div>Input<span>geometry, slab, loads</span></div>
+      <div>Mesh<span>Q4 shell elements</span></div>
+      <div>Solve<span>K · d = F</span></div>
+      <div>Recover<span>M, V, w, As</span></div>
+      <div>Design Tables<span>strip and support checks</span></div>
+    </div>
+  </div>
+
+  <div class="theoryGrid">
+    <div class="card">
+      <div class="theoryH">2. Geometry Model</div>
+      <p class="theoryLead">The slab plan is defined using joints, rectangular slab areas, columns, walls, and design strips. The solver works in millimetres and Newtons internally, then reports engineering output in common slab-design units.</p>
+      <table class="miniTable"><tbody>
+        <tr><td>Joints</td><td>ID, x, y, z control geometry and support locations.</td></tr>
+        <tr><td>Rectangles</td><td>Each rectangular slab area is meshed into Q4 elements.</td></tr>
+        <tr><td>Columns</td><td>Column dimensions define support stiffness and column-face design stations.</td></tr>
+        <tr><td>Walls</td><td>Wall lines are converted into distributed elastic support springs.</td></tr>
+        <tr><td>Design strips</td><td>Strip boundaries select which shell results are integrated into BMD/SFD.</td></tr>
+      </tbody></table>
+      <div class="theoryNote">For Example 12.6, the default strip <b>X_GRID2</b> is the primary comparison strip along gridline 2.</div>
+    </div>
+
+    <div class="card">
+      <div class="theoryH">3. Units and Sign Convention</div>
+      <ul class="theoryList">
+        <li>Coordinates, slab thickness, effective depth, column dimensions, and mesh size are entered in <b>mm</b>.</li>
+        <li>Loads are entered in <b>kPa</b>, then converted to <b>N/mm²</b> during element load construction.</li>
+        <li>Element bending results are reported as <b>kN·m/m</b>.</li>
+        <li>Element transverse shear results are reported as <b>kN/m</b>.</li>
+        <li>Design strip BMD is reported as aggregate <b>kN·m</b>; design strip SFD is reported as aggregate <b>kN</b>.</li>
+        <li>Positive vertical displacement, <b>w</b>, is taken downward in the plate DOF convention.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="theoryH">4. Material and Plate Element Formulation</div>
+    <p class="theoryLead">Each shell element is a four-node Mindlin-Reissner plate element with three degrees of freedom per node: vertical displacement and two rotations. The formulation includes bending and transverse shear deformation.</p>
+    <div class="eqBox">DOF per node = [ w, θx, θy ]
+
+Ec = 4500√f′c       unless Ec override is entered
+G  = Ec / [2(1 + ν)]
+
+Db = Ec h³ / [12(1 − ν²)] · [[1,ν,0], [ν,1,0], [0,0,(1−ν)/2]]
+Ds = (5/6) G h · I</div>
+    <p class="theoryLead">The element stiffness is assembled from bending stiffness and shear stiffness. Bending terms use 2×2 Gauss integration, and shear terms use reduced 1×1 integration.</p>
+    <div class="eqBox">Ke = ∫ Bbᵀ Db Bb dA + ∫ Bsᵀ Ds Bs dA</div>
+  </div>
+
+  <div class="theoryGrid">
+    <div class="card">
+      <div class="theoryH">5. Applied Gravity Load</div>
+      <p class="theoryLead">The program includes slab self-weight, superimposed dead load, and live load. These are factored and applied as a uniform area pressure to the slab shell elements.</p>
+      <div class="eqBox">Self-weight DL = γc · h
+Specified DL  = γc · h + SDL
+qULS          = Df(γc · h + SDL) + Lf(LL)
+
+Internal pressure = qULS × 0.001 N/mm²</div>
+      <p class="theoryLead">For the Example 12.6 defaults, the applied factored load is:</p>
+      <div class="eqBox">γc = 24 kN/m³
+h  = 0.180 m
+SDL = 1.44 kPa
+LL  = 3.60 kPa
+
+qULS = 1.25(24×0.180 + 1.44) + 1.5(3.60)
+qULS = 12.60 kPa</div>
+    </div>
+
+    <div class="card">
+      <div class="theoryH">6. Column and Wall Supports</div>
+      <p class="theoryLead">Columns and walls are represented with elastic springs attached to mesh nodes. This gives the slab vertical and rotational restraint without explicitly meshing the column shafts.</p>
+      <div class="eqBox">Column vertical spring:
+kz = Ec A / Ltop + Ec A / Lbottom
+
+Column rotational spring:
+kθ = α Ec I / Ltop + α Ec I / Lbottom
+
+α = 4 for fixed far end
+α = 3 for pinned far end</div>
+      <p class="theoryLead">Wall support springs are distributed along the wall line based on tributary wall length assigned to each support node.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="theoryH">7. Global Solution</div>
+    <p class="theoryLead">The app assembles all element stiffnesses, support springs, and equivalent nodal loads into a global sparse system. The unknowns are the nodal vertical displacements and rotations.</p>
+    <div class="eqBox">K · d = F
+
+K = shell element stiffness + column/wall support spring stiffness
+d = global displacement/rotation vector
+F = equivalent nodal vertical load vector</div>
+    <p class="theoryLead">The solver uses a conjugate-gradient iteration with diagonal preconditioning. The solver log reports node count, shell count, degrees of freedom, iteration count, residual, and total applied factored load.</p>
+  </div>
+
+  <div class="theoryGrid">
+    <div class="card">
+      <div class="theoryH">8. Recovered Element Forces</div>
+      <p class="theoryLead">After solving for nodal displacements, the program evaluates element-centre curvatures and shear strains, then recovers bending moments and transverse shear forces.</p>
+      <div class="eqBox">κx  = dθx/dx
+κy  = dθy/dy
+κxy = dθx/dy + dθy/dx
+
+γxz = θx + dw/dx
+γyz = θy + dw/dy
+
+[M11, M22, M12]ᵀ = Db [κx, κy, κxy]ᵀ
+[V13, V23]ᵀ      = Ds [γxz, γyz]ᵀ</div>
+    </div>
+
+    <div class="card">
+      <div class="theoryH">9. Contours and Hover Values</div>
+      <ul class="theoryList">
+        <li><b>M11</b> is the local x-direction bending moment, reported in kN·m/m.</li>
+        <li><b>M22</b> is the local y-direction bending moment, reported in kN·m/m.</li>
+        <li><b>M12</b> is twisting moment, reported in kN·m/m.</li>
+        <li><b>V13</b> and <b>V23</b> are transverse shear components, reported in kN/m.</li>
+        <li>The contour colour scale maps blue to the displayed minimum and red to the displayed maximum.</li>
+        <li>Hovering over a contour element reports the element ID, location, and M/V shell forces.</li>
+      </ul>
+      <div class="theoryNote">Contour results are element-centre values. Design strip tables are integrated strip values, so the numerical units and interpretation are different.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="theoryH">10. Preliminary Flexural Reinforcement Demand</div>
+    <p class="theoryLead">The program uses a Wood-Armer-style transformation to convert twisting moment into directional design moments. Positive demand is treated as bottom reinforcement demand, and negative demand is treated as top reinforcement demand.</p>
+    <div class="eqBox">Direction 1 bottom: M1+ = max(0,  M11 + |M12|)
+Direction 1 top:    M1− = max(0, −(M11 − |M12|))
+
+Direction 2 bottom: M2+ = max(0,  M22 + |M12|)
+Direction 2 top:    M2− = max(0, −(M22 − |M12|))</div>
+    <p class="theoryLead">The required steel area is then calculated using the app's rectangular stress block routine for a 1000 mm design width.</p>
+    <div class="eqBox">α1 = 0.85 − 0.0015 f′c
+φc = 0.65
+φs = 0.85
+b  = 1000 mm
+
+As = [B − √(B² − 4 A Mu)] / (2A) − As,existing</div>
+  </div>
+
+  <div class="card">
+    <div class="theoryH">11. Design Strip Aggregation</div>
+    <p class="theoryLead">Design strips convert shell forces per metre into aggregate strip forces. This is the step that converts a shell FEM result into a design-strip result similar to equivalent-frame output.</p>
+    <div class="eqBox">X-direction strip:
+Aggregate BMD = Σ(M11 · dy)
+Aggregate SFD = Σ(V13 · dy)
+
+Y-direction strip:
+Aggregate BMD = Σ(M22 · dx)
+Aggregate SFD = Σ(V23 · dx)</div>
+    <p class="theoryLead">Only shell elements whose centroids lie inside the selected strip are included. The strip plots are then drawn in the same filled-diagram style used by the earlier Two Way Slabs app.</p>
+  </div>
+
+  <div class="theoryGrid">
+    <div class="card">
+      <div class="theoryH">12. Table 1 — Element Results</div>
+      <p class="theoryLead">Table 1 is the raw finite-element database table. It reports element-centre coordinates, deflection, moments, shears, and preliminary reinforcement demand for each shell element.</p>
+      <div class="eqBox">Rows = shell elements
+Values = element-centre FEM result recovery
+Use = troubleshooting contours and local force patterns</div>
+    </div>
+
+    <div class="card">
+      <div class="theoryH">13. Table 2 — Bending Moment Design</div>
+      <p class="theoryLead">Table 2 is generated from the selected design strip only. The program reports the span label, face-to-face span indication, design station, aggregate moment, required steel, and approximate bar spacing.</p>
+      <div class="eqBox">Top steel rows:
+Left Face (Top)  = aggregate strip moment at left column face
+Right Face (Top) = aggregate strip moment at right column face
+
+Bottom steel row:
+Max in Span (Bot) = maximum positive aggregate strip moment between column faces</div>
+      <div class="theoryNote">Column-face stations use the entered column dimension in the strip direction. For X-strips, column face offset is cx/2. For Y-strips, column face offset is cy/2.</div>
+    </div>
+  </div>
+
+  <div class="theoryGrid">
+    <div class="card">
+      <div class="theoryH">14. Table 3 — One-Way Shear Design</div>
+      <p class="theoryLead">Table 3 is also generated from the selected design strip only. The program evaluates aggregate strip shear at a distance dv from each column face and compares it to concrete shear resistance calculated using Equation 11.6.</p>
+      <div class="eqBox">Shear design stations:
+Left check  = left column face + dv
+Right check = right column face − dv
+
+Equation 11.6:
+Vc = φc λ β √f′c bw dv
+
+β = max(0.05, 230 / (1000 + dv))
+dv = max(0.9d, 0.72h)
+√f′c ≤ 8 MPa
+λ = 1.0</div>
+    </div>
+
+    <div class="card">
+      <div class="theoryH">15. Table 4 — Two-Way Shear Design</div>
+      <p class="theoryLead">Table 4 provides SAFE-like punching quantities for columns within the selected design strip. The values are estimated from the finite-element support spring reactions.</p>
+      <div class="eqBox">Vertical punching force estimate:
+Vf ≈ |column spring vertical reaction| − load inside critical perimeter
+
+Unbalanced moment estimate:
+Mps = √(Mx² + My²)
+
+Mx, My are recovered from column rotational spring reactions.</div>
+      <div class="theoryNote">This is an engineering approximation intended to communicate the FE-to-design workflow. It is not a full replacement for a code punching shear module with perimeter trimming, openings, drops, capitals, stud rails, or all code-specific β/γv factors.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="theoryH">16. Example 12.6 Defaults</div>
+    <p class="theoryLead">The default model represents the Example 12.6 slab layout and loading used during validation. The main comparison strip is X_GRID2, which corresponds to the design strip along gridline 2.</p>
+    <div class="eqBox">Plan dimensions:
+A-B = 5 m
+B-C = 6 m
+C-D = 5 m
+Gridline spacing in the other direction = 4.8 m
+Overall slab = 16 m × 24 m
+
+Default comparison strip:
+X_GRID2, X, 0, 16000, 16800, 21600</div>
+  </div>
+
+  <div class="card">
+    <div class="theoryH">17. Engineering Limitations and Review Checklist</div>
+    <ul class="theoryList">
+      <li>Results depend on mesh density. Finer mesh generally changes local peak values near supports.</li>
+      <li>Column and wall supports are spring idealizations, not full 3D solid/contact models.</li>
+      <li>Design strip values are based on centroid inclusion and numerical integration of shell resultants.</li>
+      <li>Two-way shear results are approximate FE reaction summaries and should be checked against governing code provisions.</li>
+      <li>Bar spacing values in the design table are approximate quick-design outputs, not final detailing.</li>
+      <li>Use contour plots, strip diagrams, and tables together. No single table should be treated as the complete design basis.</li>
+    </ul>
+    <div class="limitations"><b>Engineer review required:</b> confirm load combinations, support modelling, mesh convergence, span definitions, effective depth, material factors, minimum reinforcement, maximum spacing, punching perimeters, and final detailing requirements before issuing design.</div>
+  </div>
+</div></section>
+</main><script>
+const $=id=>document.getElementById(id);let M={J:{},A:[],C:[],W:[],mesh:null,R:null};function num(id){return +$(id).value||0}function P(){let fc=num('fc');return{fc,fy:num('fy'),Ec:num('Ec')||4500*Math.sqrt(fc),nu:num('nu'),gam:num('gam'),h:num('h'),d:num('d'),SDL:num('SDL'),LL:num('LL'),Df:num('Df'),Lf:num('Lf'),Aex:num('Aex'),mx:num('mx'),my:num('my'),tol:num('tol'),Lt:num('Lt'),Lb:num('Lb'),far:$('far').value,tw:num('tw'),scale:num('scale'),cgtol:+$('cgtol').value||1e-7}}
+function loadSummaryText(p=P()){const sw=p.gam*p.h/1000,dead=sw+p.SDL,q=p.Df*dead+p.Lf*p.LL;return `Load summary — ALL included
+Self-weight DL = ${sw.toFixed(3)} kPa
+Superimposed DL = ${p.SDL.toFixed(3)} kPa
+Total specified DL = ${dead.toFixed(3)} kPa
+Live load LL = ${p.LL.toFixed(3)} kPa
+Factored ULS load = ${q.toFixed(3)} kPa`;}
+function updateLoadSummary(){if($('loadSummary'))$('loadSummary').textContent=loadSummaryText(P());}
+
+function tab(id){document.querySelectorAll('.view').forEach(v=>v.classList.add('hide'));$(id).classList.remove('hide');document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));event?.target?.classList.add('active');if(id==='results')drawResults()}function rows(t){return t.split(/\n+/).map(r=>r.trim()).filter(r=>r&&!r.startsWith('#')).map(r=>r.split(',').map(x=>x.trim()))}
+function sync(){M.J={};rows($('joints').value).forEach(r=>{if(r.length>=3)M.J[r[0]]={id:r[0],x:+r[1],y:+r[2],z:+r[3]||0}});let p=P();M.A=rows($('areas').value).map(r=>({id:r[0],a:r[1],c:r[2]})).filter(a=>M.J[a.a]&&M.J[a.c]);M.C=rows($('cols').value).map(r=>({id:r[0],j:r[1],cx:+r[2]||600,cy:+r[3]||300,Lt:+r[4]||p.Lt,Lb:+r[5]||p.Lb})).filter(c=>M.J[c.j]);M.W=rows($('walls').value).map(r=>({id:r[0],a:r[1],b:r[2],tw:+r[3]||p.tw,Lt:+r[4]||p.Lt,Lb:+r[5]||p.Lb})).filter(w=>M.J[w.a]&&M.J[w.b]);M.S=rows($('strips')?.value||'').map(r=>({id:r[0],dir:(r[1]||'X').toUpperCase(),a:+r[2],b:+r[3],lo:+r[4],hi:+r[5]})).filter(s=>s.id&&['X','Y'].includes(s.dir)&&isFinite(s.a)&&isFinite(s.b)&&isFinite(s.lo)&&isFinite(s.hi));drawPlan()}
+function loadEx(){
+$('fc').value=30;$('fy').value=400;$('Ec').value=0;$('nu').value=.2;$('gam').value=24;$('h').value=180;$('d').value=140;$('SDL').value=1.44;$('LL').value=3.6;$('Df').value=1.25;$('Lf').value=1.5;$('Aex').value=0;$('mx').value=333;$('my').value=333;$('tol').value=1;$('Lt').value=3000;$('Lb').value=3000;$('tw').value=200;$('far').value='fixed';$('scale').value=80;$('cgtol').value='1e-7';
+const xs=[0,5000,11000,16000],ys=[24000,19200,14400,9600,4800,0];let js=[],cs=[];
+ys.forEach((y,j)=>xs.forEach((x,i)=>{let id=String.fromCharCode(65+i)+(j+1);js.push(`${id},${x},${y},0`);let cx=(i==0||i==xs.length-1)?300:600,cy=(i==0||i==xs.length-1)?600:300;cs.push(`C_${id},${id},${cx},${cy},3000,3000`)}));
+$('joints').value=js.join('\n');$('areas').value='S1,A6,D1';$('cols').value=cs.join('\n');$('walls').value='';
+$('strips').value=['X_GRID2,X,0,16000,16800,21600','X_GRID3,X,0,16000,12000,16800','Y_GRID_B,Y,0,24000,2500,8000','Y_GRID_C,Y,0,24000,8000,13500'].join('\n');
+sync();updateLoadSummary();$('status').textContent='Example 12.6 geometry loaded; aggregate strip diagrams use Two Way Slabs style.'}
+function bounds(){let a=Object.values(M.J);return{minx:Math.min(...a.map(j=>j.x)),maxx:Math.max(...a.map(j=>j.x)),miny:Math.min(...a.map(j=>j.y)),maxy:Math.max(...a.map(j=>j.y))}}function sc(){let b=bounds(),pad=55,W=1000,H=680,s=Math.min((W-2*pad)/(b.maxx-b.minx||1),(H-2*pad)/(b.maxy-b.miny||1));return{X:x=>pad+(x-b.minx)*s,Y:y=>H-pad-(y-b.miny)*s,s,b}}
+function drawPlan(){if(!Object.keys(M.J).length)return;let S=sc(),o='<rect width="1000" height="680" fill="#0d1117"/>';M.A.forEach(a=>{let A=M.J[a.a],C=M.J[a.c],x1=Math.min(A.x,C.x),x2=Math.max(A.x,C.x),y1=Math.min(A.y,C.y),y2=Math.max(A.y,C.y);o+=`<rect x="${S.X(x1)}" y="${S.Y(y2)}" width="${(x2-x1)*S.s}" height="${(y2-y1)*S.s}" fill="#58a6ff22" stroke="#58a6ff"/>`});M.C.forEach(c=>{let j=M.J[c.j];o+=`<rect x="${S.X(j.x)-5}" y="${S.Y(j.y)-5}" width="10" height="10" fill="#3fb950"/>`});(M.S||[]).forEach(s=>{let x1=s.dir==='X'?s.a:s.lo,x2=s.dir==='X'?s.b:s.hi,y1=s.dir==='X'?s.lo:s.a,y2=s.dir==='X'?s.hi:s.b;o+=`<rect x="${S.X(Math.min(x1,x2))}" y="${S.Y(Math.max(y1,y2))}" width="${Math.abs(x2-x1)*S.s}" height="${Math.abs(y2-y1)*S.s}" fill="#d2992222" stroke="#d29922" stroke-dasharray="8,5"/><text x="${S.X(Math.min(x1,x2))+6}" y="${S.Y(Math.max(y1,y2))+14}" fill="#d29922" font-size="12">${s.id}</text>`});Object.values(M.J).forEach(j=>o+=`<circle cx="${S.X(j.x)}" cy="${S.Y(j.y)}" r="3" fill="#e6edf3"/><text x="${S.X(j.x)+5}" y="${S.Y(j.y)-5}" fill="#8b949e" font-size="10">${j.id}</text>`);$('plan').innerHTML=o}
+function vals(a,b,max){let n=Math.max(1,Math.ceil(Math.abs(b-a)/max)),r=[];for(let i=0;i<=n;i++)r.push(a+(b-a)*i/n);return r}function addU(ar,v,t){if(!ar.some(x=>Math.abs(x-v)<=t))ar.push(v)}
+function mesh(){sync();let p=P(),nodes=[],map=new Map(),ele=[];function key(x,y){return Math.round(x/p.tol)+','+Math.round(y/p.tol)}function nd(x,y){let k=key(x,y);if(map.has(k))return map.get(k);let id=nodes.length;nodes.push({id,x,y,support:false});map.set(k,id);return id}M.A.forEach(a=>{let A=M.J[a.a],C=M.J[a.c],x1=Math.min(A.x,C.x),x2=Math.max(A.x,C.x),y1=Math.min(A.y,C.y),y2=Math.max(A.y,C.y),xs=vals(x1,x2,p.mx),ys=vals(y1,y2,p.my);Object.values(M.J).forEach(j=>{if(j.x>=x1-p.tol&&j.x<=x2+p.tol)addU(xs,j.x,p.tol);if(j.y>=y1-p.tol&&j.y<=y2+p.tol)addU(ys,j.y,p.tol)});xs.sort((a,b)=>a-b);ys.sort((a,b)=>a-b);for(let i=0;i<xs.length-1;i++)for(let j=0;j<ys.length-1;j++)ele.push({id:ele.length,n:[nd(xs[i],ys[j]),nd(xs[i+1],ys[j]),nd(xs[i+1],ys[j+1]),nd(xs[i],ys[j+1])]})});M.mesh={nodes,ele};tag();drawMesh();$('meshstat').textContent=`${nodes.length} nodes, ${ele.length} shell elements`;$('meshinfo').textContent=`Nodes: ${nodes.length}\nElements: ${ele.length}\nDOF: ${nodes.length*3}\nMax mesh requested: ${p.mx} × ${p.my} mm`;}
+function tag(){let p=P();M.mesh.nodes.forEach(n=>{n.col=null;n.walls=[];M.C.forEach(c=>{let j=M.J[c.j];if(Math.hypot(n.x-j.x,n.y-j.y)<=p.tol){n.support=true;n.col=c}})});M.W.forEach(w=>{let A=M.J[w.a],B=M.J[w.b],L=Math.hypot(B.x-A.x,B.y-A.y),list=[];if(!L)return;M.mesh.nodes.forEach(n=>{let t=((n.x-A.x)*(B.x-A.x)+(n.y-A.y)*(B.y-A.y))/(L*L),px=A.x+t*(B.x-A.x),py=A.y+t*(B.y-A.y);if(t>=-1e-6&&t<=1+1e-6&&Math.hypot(n.x-px,n.y-py)<=p.tol*2)list.push({n,t})});list.sort((a,b)=>a.t-b.t);list.forEach((o,i)=>{let pr=i?list[i-1].t:0,nx=i<list.length-1?list[i+1].t:1;o.n.support=true;o.n.walls.push({w,trib:(nx-pr)*L/2})})})}
+function drawMesh(){let S=sc(),o='<rect width="1000" height="680" fill="#0d1117"/>';M.mesh.ele.forEach(e=>{let ps=e.n.map(i=>M.mesh.nodes[i]);o+=`<polygon points="${ps.map(p=>S.X(p.x)+','+S.Y(p.y)).join(' ')}" fill="#58a6ff0a" stroke="#30363d" stroke-width=".6"/>`});M.mesh.nodes.forEach(n=>{if(n.support)o+=`<circle cx="${S.X(n.x)}" cy="${S.Y(n.y)}" r="3" fill="#3fb950"/>`});$('meshsvg').innerHTML=o}
+function zeros(n){return Array.from({length:n},()=>new Map())}function add(K,i,j,v){K[i].set(j,(K[i].get(j)||0)+v)}function mv(K,x){return K.map(r=>{let s=0;r.forEach((v,j)=>s+=v*x[j]);return s})}function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s}
+function cg(K,b,tol,maxit){let n=b.length,x=Array(n).fill(0),r=b.slice(),D=K.map((row,i)=>row.get(i)||1),z=r.map((v,i)=>v/D[i]),p=z.slice(),rz=dot(r,z),bn=Math.sqrt(dot(b,b))||1,log=[];for(let it=1;it<=maxit;it++){let Ap=mv(K,p),a=rz/(dot(p,Ap)||1e-30);for(let i=0;i<n;i++){x[i]+=a*p[i];r[i]-=a*Ap[i]}let rel=Math.sqrt(dot(r,r))/bn;if(it%50===0)log.push(`iter ${it}: rel ${rel.toExponential(3)}`);if(rel<tol)return{x,it,rel,log};z=r.map((v,i)=>v/D[i]);let rz2=dot(r,z),beta=rz2/(rz||1e-30);for(let i=0;i<n;i++)p[i]=z[i]+beta*p[i];rz=rz2}return{x,it:maxit,rel:Math.sqrt(dot(r,r))/bn,log}}
+function N(xi,e){return [.25*(1-xi)*(1-e),.25*(1+xi)*(1-e),.25*(1+xi)*(1+e),.25*(1-xi)*(1+e)]}function dN(xi,e){return [[-.25*(1-e),-.25*(1-xi)],[.25*(1-e),-.25*(1+xi)],[.25*(1+e),.25*(1+xi)],[-.25*(1+e),.25*(1-xi)]]}
+function elem(e,p){let ns=e.n.map(i=>M.mesh.nodes[i]),Ec=p.Ec,nu=p.nu,h=p.h,G=Ec/(2*(1+nu)),D0=Ec*h*h*h/(12*(1-nu*nu)),Db=[[D0,D0*nu,0],[D0*nu,D0,0],[0,0,D0*(1-nu)/2]],Ds=[[(5/6)*G*h,0],[0,(5/6)*G*h]],Ke=Array.from({length:12},()=>Array(12).fill(0)),A=0,g=[-1/Math.sqrt(3),1/Math.sqrt(3)];function at(xi,eta,w,shear){let Nv=N(xi,eta),dn=dN(xi,eta),J=[[0,0],[0,0]];for(let i=0;i<4;i++){J[0][0]+=dn[i][0]*ns[i].x;J[0][1]+=dn[i][0]*ns[i].y;J[1][0]+=dn[i][1]*ns[i].x;J[1][1]+=dn[i][1]*ns[i].y}let det=J[0][0]*J[1][1]-J[0][1]*J[1][0],inv=[[J[1][1]/det,-J[0][1]/det],[-J[1][0]/det,J[0][0]/det]],dx=[];for(let i=0;i<4;i++)dx.push([inv[0][0]*dn[i][0]+inv[0][1]*dn[i][1],inv[1][0]*dn[i][0]+inv[1][1]*dn[i][1]]);let B=shear?Array.from({length:2},()=>Array(12).fill(0)):Array.from({length:3},()=>Array(12).fill(0));for(let i=0;i<4;i++){let c=3*i;if(!shear){B[0][c+1]=dx[i][0];B[1][c+2]=dx[i][1];B[2][c+1]=dx[i][1];B[2][c+2]=dx[i][0]}else{B[0][c]=dx[i][0];B[0][c+1]=Nv[i];B[1][c]=dx[i][1];B[1][c+2]=Nv[i]}}let D=shear?Ds:Db;for(let a=0;a<12;a++)for(let b=0;b<12;b++){let v=0;for(let i=0;i<D.length;i++)for(let j=0;j<D[0].length;j++)v+=B[i][a]*D[i][j]*B[j][b];Ke[a][b]+=v*det*w}return det*w}g.forEach(x=>g.forEach(y=>A+=at(x,y,1,false)));at(0,0,4,true);let q=(p.Df*(p.gam*p.h/1000+p.SDL)+p.Lf*p.LL)*.001,fe=Array(12).fill(0);for(let i=0;i<4;i++)fe[3*i]=q*A/4;return{Ke,fe,A}}
+function springs(K,p){let alpha=p.far==='fixed'?4:3;M.mesh.nodes.forEach((n,i)=>{let w=3*i,tx=w+1,ty=w+2;if(n.col){let c=n.col,A=c.cx*c.cy,Ix=c.cy*c.cx**3/12,Iy=c.cx*c.cy**3/12;add(K,w,w,p.Ec*A/c.Lt+p.Ec*A/c.Lb);add(K,tx,tx,alpha*p.Ec*Ix/c.Lt+alpha*p.Ec*Ix/c.Lb);add(K,ty,ty,alpha*p.Ec*Iy/c.Lt+alpha*p.Ec*Iy/c.Lb)}n.walls.forEach(o=>{let A=o.w.tw*o.trib,I=o.trib*o.w.tw**3/12;add(K,w,w,p.Ec*A/o.w.Lt+p.Ec*A/o.w.Lb);add(K,tx,tx,alpha*p.Ec*I/o.w.Lt+alpha*p.Ec*I/o.w.Lb);add(K,ty,ty,alpha*p.Ec*I/o.w.Lt+alpha*p.Ec*I/o.w.Lb)})})}
+function analyze(){if(!M.mesh)mesh();let p=P(),ndof=M.mesh.nodes.length*3,K=zeros(ndof),F=Array(ndof).fill(0),area=0;M.mesh.ele.forEach(e=>{let r=elem(e,p),map=[];area+=r.A;e.n.forEach(id=>map.push(3*id,3*id+1,3*id+2));for(let a=0;a<12;a++){F[map[a]]+=r.fe[a];for(let b=0;b<12;b++)add(K,map[a],map[b],r.Ke[a][b])}});springs(K,p);let sol=cg(K,F,p.cgtol,Math.max(1000,ndof*3));let out=recover(sol.x,p);M.R={d:sol.x,out,area,totalLoad:F.reduce((a,b)=>a+b,0),sol};$('log').textContent=`Sparse CG analysis complete\nNodes: ${M.mesh.nodes.length}\nShells: ${M.mesh.ele.length}\nDOF: ${ndof}\nIterations: ${sol.it}\nRelative residual: ${sol.rel.toExponential(4)}\nTotal factored load: ${(M.R.totalLoad/1000).toFixed(2)} kN\n${sol.log.join('\n')}`;drawResults();calcDesignStrips();tab('results')}
+function calcAt(e,de,p){let ns=e.n.map(i=>M.mesh.nodes[i]),Ec=p.Ec,nu=p.nu,h=p.h,G=Ec/(2*(1+nu)),D0=Ec*h*h*h/(12*(1-nu*nu)),Db=[[D0,D0*nu,0],[D0*nu,D0,0],[0,0,D0*(1-nu)/2]],Ds=[[(5/6)*G*h,0],[0,(5/6)*G*h]],xi=0,eta=0,Nv=N(xi,eta),dn=dN(xi,eta),J=[[0,0],[0,0]];for(let i=0;i<4;i++){J[0][0]+=dn[i][0]*ns[i].x;J[0][1]+=dn[i][0]*ns[i].y;J[1][0]+=dn[i][1]*ns[i].x;J[1][1]+=dn[i][1]*ns[i].y}let det=J[0][0]*J[1][1]-J[0][1]*J[1][0],inv=[[J[1][1]/det,-J[0][1]/det],[-J[1][0]/det,J[0][0]/det]],dx=[];for(let i=0;i<4;i++)dx.push([inv[0][0]*dn[i][0]+inv[0][1]*dn[i][1],inv[1][0]*dn[i][0]+inv[1][1]*dn[i][1]]);let kap=[0,0,0],gam=[0,0];for(let i=0;i<4;i++){let c=3*i;kap[0]+=dx[i][0]*de[c+1];kap[1]+=dx[i][1]*de[c+2];kap[2]+=dx[i][1]*de[c+1]+dx[i][0]*de[c+2];gam[0]+=dx[i][0]*de[c]+Nv[i]*de[c+1];gam[1]+=dx[i][1]*de[c]+Nv[i]*de[c+2]}let Mv=Db.map(r=>r.reduce((s,v,i)=>s+v*kap[i],0)),Vv=Ds.map(r=>r.reduce((s,v,i)=>s+v*gam[i],0));return{M:Mv,V:Vv}}
+function As(Mu,p){Mu=Math.abs(Mu)*1e6;let b=1000,phic=.65,phis=.85,alpha=.85-.0015*p.fc,A=(phis*p.fy)**2/(2*alpha*phic*p.fc*b),B=phis*p.fy*p.d,disc=B*B-4*A*Mu;if(disc<0)return NaN;return Math.max(0,(B-Math.sqrt(disc))/(2*A)-p.Aex)}
+function recover(d,p){return M.mesh.ele.map(e=>{let de=[];e.n.forEach(id=>de.push(d[3*id],d[3*id+1],d[3*id+2]));let r=calcAt(e,de,p),ns=e.n.map(i=>M.mesh.nodes[i]),x=ns.reduce((s,n)=>s+n.x,0)/4,y=ns.reduce((s,n)=>s+n.y,0)/4,w=e.n.reduce((s,id)=>s+d[3*id],0)/4,M11=r.M[0]/1000,M22=r.M[1]/1000,M12=r.M[2]/1000,V13=r.V[0],V23=r.V[1];let m1p=Math.max(0,M11+Math.abs(M12)),m2p=Math.max(0,M22+Math.abs(M12)),m1n=Math.max(0,-(M11-Math.abs(M12))),m2n=Math.max(0,-(M22-Math.abs(M12)));let x1=Math.min(...ns.map(n=>n.x)),x2=Math.max(...ns.map(n=>n.x)),y1=Math.min(...ns.map(n=>n.y)),y2=Math.max(...ns.map(n=>n.y));return{id:e.id,x,y,x1,x2,y1,y2,dx:x2-x1,dy:y2-y1,w,M11,M22,M12,V13,V23,As1b:As(m1p,p),As1t:As(m1n,p),As2b:As(m2p,p),As2t:As(m2n,p)}})}
+function col(t){t=Math.max(0,Math.min(1,t));return`hsl(${(1-t)*240},85%,55%)`}function drawResults(){if(!M.R){$('ext').textContent='No results.';return}let type=$('rtype').value,vals=M.R.out.map(r=>r[type]),mn=Math.min(...vals),mx=Math.max(...vals),S=sc(),p=P(),o='<rect width="1000" height="680" fill="#0d1117"/>';M.mesh.ele.forEach((e,i)=>{let v=M.R.out[i][type],tt=(v-mn)/(mx-mn||1),ps=e.n.map(id=>M.mesh.nodes[id]);o+=`<polygon points="${ps.map(n=>S.X(n.x)+','+S.Y(n.y)).join(' ')}" fill="${col(tt)}" stroke="#222" stroke-width=".4"/>`});if(type==='w')M.mesh.ele.forEach(e=>{let ps=e.n.map(id=>({x:S.X(M.mesh.nodes[id].x),y:S.Y(M.mesh.nodes[id].y)+M.R.d[3*id]*p.scale}));o+=`<polygon points="${ps.map(n=>n.x+','+n.y).join(' ')}" fill="none" stroke="#fff" stroke-width=".8" opacity=".7"/>`});$('ressvg').innerHTML=o;const tickVals=[0,.1667,.3333,.5,.6667,.8333,1].map(f=>mn+(mx-mn)*f);$('legend').innerHTML=`<div class="colorScale"><div class="colorScaleTitle">${type} colour scale: blue = minimum, red = maximum</div><div class="colorScaleBar"></div><div class="colorScaleTicks">${tickVals.map(v=>`<span>${v.toFixed(3)}</span>`).join('')}</div></div>`;let keys=['w','M11','M22','M12','V13','V23','As1b','As1t','As2b','As2t'];$('ext').textContent=keys.map(k=>{let a=M.R.out.map(r=>r[k]);return`${k}: min ${Math.min(...a).toFixed(4)}   max ${Math.max(...a).toFixed(4)}`}).join('\n')+`\nTotal factored load: ${(M.R.totalLoad/1000).toFixed(2)} kN`; $('tbl').innerHTML=M.R.out.slice(0,1200).map(r=>`<tr><td>${r.id}</td><td>${(r.x/1000).toFixed(2)}</td><td>${(r.y/1000).toFixed(2)}</td><td>${r.w.toFixed(4)}</td><td>${r.M11.toFixed(2)}</td><td>${r.M22.toFixed(2)}</td><td>${r.M12.toFixed(2)}</td><td>${r.V13.toFixed(2)}</td><td>${r.V23.toFixed(2)}</td><td>${isNaN(r.As1b)?'FAIL':r.As1b.toFixed(0)}</td><td>${isNaN(r.As1t)?'FAIL':r.As1t.toFixed(0)}</td><td>${isNaN(r.As2b)?'FAIL':r.As2b.toFixed(0)}</td><td>${isNaN(r.As2t)?'FAIL':r.As2t.toFixed(0)}</td></tr>`).join('')}
+
+function calcDesignStrips(){if(!M.R){$('stripSummary').textContent='Analyze first.';return}sync();let res=[];(M.S||[]).forEach(s=>{let a=Math.min(s.a,s.b),b=Math.max(s.a,s.b),lo=Math.min(s.lo,s.hi),hi=Math.max(s.lo,s.hi),sel=M.R.out.filter(r=>s.dir==='X'?(r.x>=a&&r.x<=b&&r.y>=lo&&r.y<=hi):(r.y>=a&&r.y<=b&&r.x>=lo&&r.x<=hi)),groups=new Map();sel.forEach(r=>{let key=(s.dir==='X'?r.x:r.y).toFixed(6),g=groups.get(key)||{station:s.dir==='X'?r.x:r.y,M:0,V:0,count:0};if(s.dir==='X'){g.M+=r.M11*(r.dy/1000);g.V+=r.V13*(r.dy/1000)}else{g.M+=r.M22*(r.dx/1000);g.V+=r.V23*(r.dx/1000)}g.count++;groups.set(key,g)});let pts=[...groups.values()].sort((a,b)=>a.station-b.station);res.push({strip:s,pts,maxPosM:Math.max(0,...pts.map(p=>p.M)),maxNegM:Math.min(0,...pts.map(p=>p.M)),maxAbsV:pts.length?pts.reduce((m,p)=>Math.abs(p.V)>Math.abs(m.V)?p:m,pts[0]):null})});M.stripResults=res;let pick=$('stripPick');if(pick)pick.innerHTML=res.map((r,i)=>`<option value="${i}">${r.strip.id} (${r.strip.dir})</option>`).join('');updateDesignTablePickers();drawStripCharts();drawDesignTables()}
+function twoWayStyleChart(pts,key,color,label,unit){const W=900,H=240,PADX=56,PADY=24;if(!pts||pts.length<2)return`<rect width="${W}" height="${H}" fill="#0d1117"/><text x="20" y="35" fill="#8b949e">No strip points.</text>`;let xs=pts.map(p=>p.station),ys=pts.map(p=>p[key]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),maxAbs=Math.max(1e-9,Math.abs(minY),Math.abs(maxY));let X=x=>PADX+(x-minX)/(maxX-minX||1)*(W-2*PADX),Y=y=>H/2-(key==='M'?-y:y)/maxAbs*(H/2-PADY);let ptsStr=pts.map(p=>`${X(p.station)},${Y(p[key])}`).join(' ');let zeroY=H/2;let area=`M ${X(pts[0].station)},${zeroY} `+pts.map(p=>`L ${X(p.station)},${Y(p[key])}`).join(' ')+` L ${X(pts[pts.length-1].station)},${zeroY} Z`;let tickVals=[maxAbs/2,maxAbs,-maxAbs/2,-maxAbs].filter(v=>Math.abs(v)>1e-9);let grid=tickVals.map(v=>{let y=Y(v);return y<4||y>H-4?'':`<line x1="${PADX-3}" y1="${y}" x2="${W-PADX}" y2="${y}" stroke="#30363d" stroke-width="0.5" stroke-dasharray="3,3"/><text x="${PADX-5}" y="${y+4}" text-anchor="end" font-size="9" fill="#8b949e">${v.toFixed(0)}</text>`}).join('');let step=Math.max(1,Math.round(pts.length/8));let xlab=pts.filter((_,i)=>i%step===0||i===pts.length-1).map(p=>`<text x="${X(p.station)}" y="${H-4}" text-anchor="middle" font-size="9" fill="#8b949e">${(p.station/1000).toFixed(1)}</text>`).join('');return`<rect width="${W}" height="${H}" fill="#0d1117"/><line x1="${PADX}" y1="${zeroY}" x2="${W-PADX}" y2="${zeroY}" stroke="#30363d" stroke-width="1"/>${grid}<path d="${area}" fill="${color}33"/><polyline points="${ptsStr}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>${xlab}<text x="${PADX}" y="12" font-size="10" fill="${color}" font-weight="700">${label} [${unit}]</text><text x="${W-PADX}" y="${H-4}" text-anchor="end" font-size="9" fill="#8b949e">station (m)</text><line x1="${PADX}" y1="${PADY}" x2="${PADX}" y2="${H-PADY}" stroke="#30363d" stroke-width="1"/>`}
+function drawStripCharts(){let res=M.stripResults||[],idx=+$('stripPick')?.value||0,r=res[idx];if(!r){if($('stripSummary'))$('stripSummary').textContent='No design strip results.';return}$('stripBMD').innerHTML=twoWayStyleChart(r.pts,'M','#f0883e',`${r.strip.id} aggregate M`,'kN·m');$('stripSFD').innerHTML=twoWayStyleChart(r.pts,'V','#39d353',`${r.strip.id} aggregate V`,'kN');$('stripSummary').textContent=`Design strip: ${r.strip.id}\nDirection: ${r.strip.dir}\nStations: ${r.pts.length}\nMax positive aggregate moment: ${r.maxPosM.toFixed(2)} kN·m\nMax negative aggregate moment: ${r.maxNegM.toFixed(2)} kN·m\nMax absolute aggregate shear: ${r.maxAbsV?r.maxAbsV.V.toFixed(2):'n/a'} kN\nGraphics: restored to Two Way Slabs v0.8.9 diagram style.`}
+function hideHover(){let t=$('hoverTip');if(t)t.style.display='none'}
+function contourHover(evt){if(!M.R||!M.mesh)return;let svg=$('ressvg'),pt=svg.createSVGPoint();pt.x=evt.clientX;pt.y=evt.clientY;let q=pt.matrixTransform(svg.getScreenCTM().inverse()),S=sc(),x=S.b.minx+(q.x-55)/S.s,y=S.b.miny+(680-55-q.y)/S.s;let r=M.R.out.find(e=>x>=e.x1&&x<=e.x2&&y>=e.y1&&y<=e.y2);let tip=$('hoverTip');if(!r||!tip){hideHover();return}tip.style.display='block';tip.style.left=(evt.clientX+14)+'px';tip.style.top=(evt.clientY+14)+'px';tip.textContent=`Element ${r.id}\nx = ${(r.x/1000).toFixed(3)} m, y = ${(r.y/1000).toFixed(3)} m\nM11 = ${r.M11.toFixed(3)} kN·m/m\nM22 = ${r.M22.toFixed(3)} kN·m/m\nM12 = ${r.M12.toFixed(3)} kN·m/m\nV13 = ${r.V13.toFixed(3)} kN/m\nV23 = ${r.V23.toFixed(3)} kN/m`}
+
+
+function barSpacing(AsReq,barArea){if(!isFinite(AsReq)||AsReq<=0)return '—';return Math.max(50,Math.floor(barArea*1000/AsReq/5)*5)}
+function stripWidthM(s){return Math.abs(s.hi-s.lo)/1000}
+function axisMap(dir){let m=new Map();Object.values(M.J).forEach(j=>{if(dir==='X')m.set(j.x,j.id.replace(/[0-9]/g,''));else m.set(j.y,j.id.replace(/[A-Z_]/gi,''))});return m}
+function nearestPt(pts,x){if(!pts||!pts.length)return null;return pts.reduce((a,b)=>Math.abs(b.station-x)<Math.abs(a.station-x)?b:a,pts[0])}
+function supportStationsForStrip(s){let vals=[];(M.C||[]).forEach(c=>{let j=M.J[c.j];if(!j)return;if(s.dir==='X'){if(j.y>=Math.min(s.lo,s.hi)-1&&j.y<=Math.max(s.lo,s.hi)+1&&j.x>=Math.min(s.a,s.b)-1&&j.x<=Math.max(s.a,s.b)+1)vals.push({st:j.x,label:j.id.replace(/[0-9]/g,''),col:c,j})}else{if(j.x>=Math.min(s.lo,s.hi)-1&&j.x<=Math.max(s.lo,s.hi)+1&&j.y>=Math.min(s.a,s.b)-1&&j.y<=Math.max(s.a,s.b)+1)vals.push({st:j.y,label:j.id.replace(/[A-Z_]/gi,''),col:c,j})}});let seen=new Map();vals.forEach(v=>{if(!seen.has(v.st))seen.set(v.st,v)});return [...seen.values()].sort((a,b)=>a.st-b.st)}
+function updateDesignTablePickers(){let res=M.stripResults||[],opts=res.map((r,i)=>`<option value="${i}">${r.strip.id} (${r.strip.dir})</option>`).join('');['tableStripPick','tableStripPick2','tableStripPick3'].forEach(id=>{let el=$(id);if(el){let old=el.value;el.innerHTML=opts;if(old)el.value=old}})}
+function syncTablePick(n){let src=$('tableStripPick'+(n===1?'':n));let v=src?src.value:0;['tableStripPick','tableStripPick2','tableStripPick3'].forEach(id=>{let el=$(id);if(el)el.value=v});drawDesignTables()}
+function flexAsFromAgg(Magg,widthM,p){return As(Math.abs(Magg)/(widthM||1),p)}
+function spanName(a,b,map){let la=map.get(a.st)||((a.st/1000).toFixed(1)+'m'),lb=map.get(b.st)||((b.st/1000).toFixed(1)+'m');return `${la}${lb}`}
+function supportHalfAlong(s,sup){if(!sup||!sup.col)return 0;return s.dir==='X'?(sup.col.cx||0)/2:(sup.col.cy||0)/2}
+function spanFaceStations(s,L,R){let lf=L.st+supportHalfAlong(s,L),rf=R.st-supportHalfAlong(s,R);if(rf<lf){let mid=(L.st+R.st)/2;lf=mid;rf=mid}return{leftFace:lf,rightFace:rf}}
+function vcEq116(p,widthM){let phic=.65,lambda=1,bw=widthM*1000,dv=Math.max(.9*p.d,.72*p.h),beta=Math.max(.05,230/(1000+dv)),sqrtfc=Math.min(Math.sqrt(p.fc),8),Vc=phic*lambda*beta*sqrtfc*bw*dv/1000;return{Vc,dv,beta,sqrtfc,lambda,bw}}
+
+function drawBendingTable(r){let tb=$('bendTbl');if(!tb||!r||!r.pts.length){if(tb)tb.innerHTML='<tr><td colspan="8">No selected strip results.</td></tr>';return}let p=P(),s=r.strip,w=stripWidthM(s),supports=supportStationsForStrip(s),map=axisMap(s.dir),rows=[];for(let i=0;i<supports.length-1;i++){let L=supports[i],R=supports[i+1],faces=spanFaceStations(s,L,R),spanPts=r.pts.filter(pt=>pt.station>=faces.leftFace&&pt.station<=faces.rightFace);if(!spanPts.length)continue;let mid=spanPts.reduce((m,pt)=>pt.M>m.M?pt:m,spanPts[0]);let left=nearestPt(r.pts,faces.leftFace),right=nearestPt(r.pts,faces.rightFace),span=spanName(L,R,map);[[span,'Left Face (Top)',left],[span,'Max in Span (Bot)',mid],[span,'Right Face (Top)',right]].forEach(rr=>{let AsReq=flexAsFromAgg(rr[2].M,w,p);rows.push(`<tr><td class="spanCell">${rr[0]}<br><span class="small">${(faces.leftFace/1000).toFixed(2)}–${(faces.rightFace/1000).toFixed(2)} m</span></td><td>${rr[1]}</td><td>${rr[2].station.toFixed(1)}</td><td>${rr[2].M.toFixed(2)}</td><td>${isFinite(AsReq)?AsReq.toFixed(1):'FAIL'}</td><td>${isFinite(AsReq)?barSpacing(AsReq,200):'—'}</td><td>${isFinite(AsReq)?barSpacing(AsReq,300):'—'}</td><td>${isFinite(AsReq)?barSpacing(AsReq,500):'—'}</td></tr>`)})}tb.innerHTML=rows.join('')||'<tr><td colspan="8">No span data inside selected strip.</td></tr>'}
+function drawOneWayTable(r){let tb=$('oneWayTbl');if(!tb||!r||!r.pts.length){if(tb)tb.innerHTML='<tr><td colspan="7">No selected strip results.</td></tr>';return}let p=P(),s=r.strip,w=stripWidthM(s),supports=supportStationsForStrip(s),map=axisMap(s.dir),vc=vcEq116(p,w),dv=vc.dv,Vc=vc.Vc,rows=[];for(let i=0;i<supports.length-1;i++){let L=supports[i],R=supports[i+1],faces=spanFaceStations(s,L,R),span=spanName(L,R,map);let lp=nearestPt(r.pts,faces.leftFace+dv),rp=nearestPt(r.pts,faces.rightFace-dv);[[span,'Left: face + dv',lp],[span,'Right: face − dv',rp]].forEach(rr=>{if(!rr[2])return;let Vf=Math.abs(rr[2].V),ok=Vf<=Vc;rows.push(`<tr><td class="spanCell">${rr[0]}<br><span class="small">${(faces.leftFace/1000).toFixed(2)}–${(faces.rightFace/1000).toFixed(2)} m</span></td><td>${rr[1]}</td><td>${rr[2].station.toFixed(1)}</td><td>${Vf.toFixed(2)}</td><td>${dv.toFixed(1)}</td><td>${Vc.toFixed(2)}<br><span class="small">β=${vc.beta.toFixed(3)}</span></td><td class="${ok?'ok':'ng'}">${ok?'OK':'NG'}</td></tr>`)})}tb.innerHTML=rows.join('')||'<tr><td colspan="7">No one-way shear stations found.</td></tr>'}
+function colReaction(c){let p=P(),j=M.J[c.j];if(!j||!M.mesh||!M.R)return null;let nd=M.mesh.nodes.find(n=>Math.hypot(n.x-j.x,n.y-j.y)<=p.tol);if(!nd)return null;let i=nd.id,w=M.R.d[3*i],tx=M.R.d[3*i+1],ty=M.R.d[3*i+2],alpha=p.far==='fixed'?4:3,A=c.cx*c.cy,Ix=c.cy*c.cx**3/12,Iy=c.cx*c.cy**3/12,kz=p.Ec*A/c.Lt+p.Ec*A/c.Lb,ktx=alpha*p.Ec*Ix/c.Lt+alpha*p.Ec*Ix/c.Lb,kty=alpha*p.Ec*Iy/c.Lt+alpha*p.Ec*Iy/c.Lb;return {V:kz*w/1000,Mx:ktx*tx/1e6,My:kty*ty/1e6,j}}
+function drawTwoWayTable(r){let tb=$('twoWayTbl');if(!tb||!r){if(tb)tb.innerHTML='<tr><td colspan="6">No selected strip results.</td></tr>';return}let p=P(),s=r.strip,q=p.Df*(p.gam*p.h/1000+p.SDL)+p.Lf*p.LL,rows=[];(M.C||[]).forEach(c=>{let j=M.J[c.j];if(!j)return;let inside=s.dir==='X'?(j.y>=Math.min(s.lo,s.hi)-1&&j.y<=Math.max(s.lo,s.hi)+1&&j.x>=Math.min(s.a,s.b)-1&&j.x<=Math.max(s.a,s.b)+1):(j.x>=Math.min(s.lo,s.hi)-1&&j.x<=Math.max(s.lo,s.hi)+1&&j.y>=Math.min(s.a,s.b)-1&&j.y<=Math.max(s.a,s.b)+1);if(!inside)return;let R=colReaction(c);if(!R)return;let critArea=(c.cx+p.d)*(c.cy+p.d)/1e6,Vu=Math.max(0,Math.abs(R.V)-q*critArea),Mps=Math.hypot(R.Mx,R.My);rows.push(`<tr><td class="spanCell">${c.j}</td><td>${Vu.toFixed(2)}</td><td>${Mps.toFixed(2)}</td><td>${Math.abs(R.Mx).toFixed(2)}</td><td>${Math.abs(R.My).toFixed(2)}</td><td class="warnTxt">FE spring reaction − load inside d/2 perimeter</td></tr>`)});tb.innerHTML=rows.join('')||'<tr><td colspan="6">No columns inside selected strip.</td></tr>'}
+function drawDesignTables(){let res=M.stripResults||[],pick=$('tableStripPick'),idx=pick?+pick.value:0;if($('tableStripPick2'))$('tableStripPick2').value=idx;if($('tableStripPick3'))$('tableStripPick3').value=idx;let r=res[idx];drawBendingTable(r);drawOneWayTable(r);drawTwoWayTable(r)}
+
+function runAll(){mesh();analyze()}function csv(){if(!M.R)return;let rows=[['Elem','x_mm','y_mm','w_mm','M11','M22','M12','V13','V23','As1b','As1t','As2b','As2t'],...M.R.out.map(r=>[r.id,r.x,r.y,r.w,r.M11,r.M22,r.M12,r.V13,r.V23,r.As1b,r.As1t,r.As2b,r.As2t])],s=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='safe_lite_results.csv';a.click()}
+function saveJSON(){sync();let data={inputs:{},joints:$('joints').value,areas:$('areas').value,cols:$('cols').value,walls:$('walls').value};['fc','fy','Ec','nu','gam','h','d','SDL','LL','Df','Lf','Aex','mx','my','tol','Lt','Lb','far','tw','scale','cgtol'].forEach(id=>data.inputs[id]=$(id).value);let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='safe_lite_example_12_6.json';a.click()}function loadJSON(ev){let f=ev.target.files[0];if(!f)return;let rd=new FileReader();rd.onload=()=>{let d=JSON.parse(rd.result);Object.entries(d.inputs||{}).forEach(([k,v])=>{if($(k))$(k).value=v});$('joints').value=d.joints||'';$('areas').value=d.areas||'';$('cols').value=d.cols||'';$('walls').value=d.walls||'';sync()};rd.readAsText(f)}
+document.addEventListener('input',updateLoadSummary);
+loadEx();</script></body></html>

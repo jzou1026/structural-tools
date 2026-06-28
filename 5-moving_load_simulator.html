@@ -138,6 +138,8 @@
       <div class="muted small">Print / Save PDF uses your browser print dialog. CSV exports the full station-by-station envelope table.</div>
     </div>
     <button class="btn primary right" id="printReport">🖨 Print / Save PDF Report</button>
+    <label class="muted small" for="csvDivisions">CSV divisions/span</label>
+    <input id="csvDivisions" type="number" min="1" step="1" value="10" style="width:90px">
     <button class="btn" id="exportCsvTop">Export CSV</button>
   </div>
   <div class="print-report-header">
@@ -718,11 +720,88 @@ function saveWorkingFile(){
 }
 
 
+function getCsvDivisions(){
+  const el = $('csvDivisions');
+  return Math.max(1, Math.round(parseFloat(el ? el.value : 10) || 10));
+}
+function interpEnvelopeValue(env, key, x){
+  const data = (env || []).filter(e => Number.isFinite(e.x)).slice().sort((a,b)=>a.x-b.x);
+  if(!data.length) return '';
+  if(x <= data[0].x) return Number.isFinite(data[0][key]) ? data[0][key] : '';
+  if(x >= data[data.length-1].x) return Number.isFinite(data[data.length-1][key]) ? data[data.length-1][key] : '';
+  for(let i=1;i<data.length;i++){
+    const a=data[i-1], b=data[i];
+    if(x <= b.x + 1e-12){
+      const ya = Number.isFinite(a[key]) ? a[key] : NaN;
+      const yb = Number.isFinite(b[key]) ? b[key] : NaN;
+      if(!Number.isFinite(ya) || !Number.isFinite(yb)) return '';
+      const t = Math.abs(b.x-a.x) > 1e-12 ? (x-a.x)/(b.x-a.x) : 0;
+      return ya + t*(yb-ya);
+    }
+  }
+  return '';
+}
+function csvEscape(v){
+  if(v === null || v === undefined) return '';
+  const s = String(v);
+  const needsQuotes = s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r');
+  return needsQuotes ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
 function exportCsv(){
   if(!lastEnvelope) return;
-  const rows=[[`x_${currentUnits.length}`,`max_positive_M_${currentUnits.force}${currentUnits.length}`,`max_negative_M_${currentUnits.force}${currentUnits.length}`,`max_positive_V_${currentUnits.force}`,`max_negative_V_${currentUnits.force}`,`front_x_for_posM_${currentUnits.length}`,`front_x_for_negM_${currentUnits.length}`,`front_x_for_posV_${currentUnits.length}`,`front_x_for_negV_${currentUnits.length}`]];
-  lastEnvelope.env.forEach(e=>rows.push([e.x,e.maxM,e.minM,e.maxV,e.minV,e.posMFront,e.negMFront,e.posVFront,e.negVFront].map(v=>Number.isFinite(v)?v:'')));
-  const csv=rows.map(r=>r.join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='traffic_load_sim_v0_2_envelope.csv'; a.click(); URL.revokeObjectURL(url);
+  const divisions = getCsvDivisions();
+  const supports = (lastEnvelope.supports && lastEnvelope.supports.length >= 2) ? lastEnvelope.supports : [0, lastEnvelope.L];
+  const xValues = [];
+  for(let s=0; s<supports.length-1; s++){
+    const x0 = supports[s], x1 = supports[s+1];
+    for(let i=0; i<=divisions; i++){
+      if(s > 0 && i === 0) continue; // avoid duplicate support station
+      xValues.push(x0 + (x1-x0)*i/divisions);
+    }
+  }
+  const rows=[[
+    'span','division',`x_${currentUnits.length}`,
+    `max_positive_M_${currentUnits.force}${currentUnits.length}`,
+    `max_negative_M_${currentUnits.force}${currentUnits.length}`,
+    `max_positive_V_${currentUnits.force}`,
+    `max_negative_V_${currentUnits.force}`,
+    `front_x_for_posM_${currentUnits.length}`,
+    `front_x_for_negM_${currentUnits.length}`,
+    `front_x_for_posV_${currentUnits.length}`,
+    `front_x_for_negV_${currentUnits.length}`
+  ]];
+  xValues.forEach(x=>{
+    let spanNo = 1, divNo = 0;
+    for(let s=0; s<supports.length-1; s++){
+      if(x >= supports[s]-1e-9 && x <= supports[s+1]+1e-9){
+        spanNo = s+1;
+        const Ls = supports[s+1]-supports[s];
+        divNo = Math.round(((x-supports[s])/(Ls || 1))*divisions);
+        break;
+      }
+    }
+    rows.push([
+      spanNo, divNo, x,
+      interpEnvelopeValue(lastEnvelope.env,'maxM',x),
+      interpEnvelopeValue(lastEnvelope.env,'minM',x),
+      interpEnvelopeValue(lastEnvelope.env,'maxV',x),
+      interpEnvelopeValue(lastEnvelope.env,'minV',x),
+      interpEnvelopeValue(lastEnvelope.env,'posMFront',x),
+      interpEnvelopeValue(lastEnvelope.env,'negMFront',x),
+      interpEnvelopeValue(lastEnvelope.env,'posVFront',x),
+      interpEnvelopeValue(lastEnvelope.env,'negVFront',x)
+    ].map(v=>Number.isFinite(v)?v:''));
+  });
+  const csv=rows.map(r=>r.map(csvEscape).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`traffic_load_sim_v0_2_envelope_${divisions}_divisions_per_span.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function activateTab(id){
